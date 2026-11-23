@@ -80,8 +80,8 @@ const SES_ISLE = false;                       // false: ses dosyası olduğu gib
 const SES_KALINLIK = 0.8;                     // sadece SES_ISLE true iken: 1 = dosyanın kendi sesi, küçüldükçe daha kalın/tok
 // Adres çubuğundan ayarlanabilir: oyun.html?bas=0.32&son=0.68  (TikTok'un sağdaki dilek listesi kutusundan kaçmak için)
 const _q = new URLSearchParams(location.search), _oran = (k, v) => { const n = parseFloat(_q.get(k)); return n > 0 && n < 1 ? n : v; };
-const BURUN_MIN = EKRAN.x + EKRAN.w * _oran('bas', 0.46);   // başlangıç çizgisi (burun)
-const BURUN_MAX = EKRAN.x + EKRAN.w * _oran('son', 0.95);   // liderin en ileri noktası
+const BURUN_MIN = EKRAN.x + EKRAN.w * _oran('bas', 0.30);   // başlangıç çizgisi (burun)
+const BURUN_MAX = EKRAN.x + EKRAN.w * _oran('son', 0.62);   // liderin en ileri noktası
 const YUMUSAT = 20;                           // puan farkı -> boşluk yumuşatma sabiti
 const params = new URLSearchParams(location.search);
 if (params.has('arka')) document.body.classList.add('arka');
