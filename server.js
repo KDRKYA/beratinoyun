@@ -19,7 +19,7 @@ fs.mkdirSync(VERI, { recursive: true });
 const VARSAYILAN = {
   kullanici: '',
   seritler: [
-    { id: 'afghanistan', ad: 'Afganistan', hediye: 'Lazer Çubuğu', giftIds: [], ikon: '', puan: 0 },
+    { id: 'afghanistan', ad: 'Afganistan', hediye: 'Lazer Çubuğu', giftIds: [6788], ikon: '', puan: 0 },
     { id: 'suriye', ad: 'Suriye', hediye: 'GG', giftIds: [6064], ikon: '', puan: 0 },
     { id: 'kurdistan', ad: 'Kürdistan', hediye: 'Gül', giftIds: [5655], ikon: '', puan: 0 },
     { id: 'turkiye', ad: 'Türkiye', hediye: 'TikTok', giftIds: [5269], ikon: '', puan: 0 },
@@ -28,6 +28,9 @@ const VARSAYILAN = {
 };
 let durum;
 try { durum = JSON.parse(fs.readFileSync(DURUM_DOSYA, 'utf8')); } catch { durum = JSON.parse(JSON.stringify(VARSAYILAN)); }
+// Eski kayıtlarda Lazer Çubuğu (Glow Stick, ID 6788) eşleşmemişse ekle
+{ const af = durum.seritler && durum.seritler.find(s => s.id === 'afghanistan');
+  if (af && !durum.seritler.some(s => s.giftIds.includes(6788))) af.giftIds.push(6788); }
 let kayitZamani = null;
 function kaydet() {
   clearTimeout(kayitZamani);
