@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oyun Önizleme</title>
+<style>
+  :root{
+    --lane-bg:#0b1220; --lane-bg2:#111a2c; --line:#7cc4ee; --badge:#0e1626; --badge-b:#22324d;
+    --wood:#b8893f; --wood2:#8a6326; --bezel:#151515;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#222;font-family:"Segoe UI",system-ui,sans-serif;color:#eee;display:flex;gap:24px;justify-content:center;align-items:flex-start;padding:16px;min-height:100vh}
+  /* 9:16 sahne (1080x1920 ölçekli) */
+  .stage{width:min(92vw, calc((100vh - 32px) * 9 / 16));aspect-ratio:9/16;position:relative;background:#000;overflow:hidden;flex:none;container-type:inline-size}
+  .wall{position:absolute;inset:0 0 auto 0;height:40%;background:linear-gradient(180deg,#c99a4c,#a77a33)}
+  /* TV çerçevesi */
+  .tv{position:absolute;left:3%;right:3%;top:3.5%;height:35%;background:linear-gradient(180deg,#2a2a2a,#0d0d0d);border-radius:4cqw 4cqw 2.5cqw 2.5cqw;padding:2.6cqw 2.6cqw 4.2cqw;box-shadow:0 1cqw 3cqw rgba(0,0,0,.6)}
+  .screen{position:relative;width:100%;height:100%;border-radius:1.6cqw;overflow:hidden;background:linear-gradient(180deg,#0a1020,#0d1526 60%,#0a0f1c)}
+  .screen svg.mtn{position:absolute;inset:0;width:100%;height:100%;opacity:.35}
+  .lanes{position:absolute;inset:0;display:flex;flex-direction:column}
+  .lane{flex:1;position:relative}
+  .lane + .lane::before, .lanes::after{content:"";position:absolute;left:0;right:0;height:.7cqw;top:-.35cqw;z-index:3;
+    background:repeating-linear-gradient(90deg,rgba(124,196,238,.95) 0 9cqw,rgba(124,196,238,.45) 9cqw 10cqw);
+    box-shadow:0 0 1.2cqw rgba(124,196,238,.8);border-radius:1cqw}
+  .lanes::after{top:auto;bottom:0}
+  .badge{position:absolute;left:2.5%;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:.8cqw;background:var(--badge);border:.2cqw solid var(--badge-b);border-radius:1.2cqw;padding:.5cqw 1.2cqw;font-weight:700;font-size:2.3cqw;z-index:4}
+  .badge .ic{width:2.6cqw;height:2.6cqw;display:grid;place-items:center;font-size:2.2cqw;line-height:1}
+  .animal{position:absolute;top:50%;height:92%;transform:translate(-100%,-50%);z-index:2}
+  .avatar{position:absolute;top:50%;width:7.5cqw;height:7.5cqw;border-radius:50%;transform:translate(-50%,-50%);border:.4cqw solid #8fd0f5;background:#cfd6de url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='15' r='7' fill='%237a8594'/%3E%3Cpath d='M6 38c2-9 8-13 14-13s12 4 14 13z' fill='%237a8594'/%3E%3C/svg%3E") center/cover;z-index:5;box-shadow:0 0 1cqw rgba(143,208,245,.7)}
+  .ring{position:absolute;top:50%;height:96%;aspect-ratio:2.1/1;transform:translate(-50%,-50%);border-radius:50%;border:.45cqw solid rgba(70,170,240,.9);box-shadow:0 0 2cqw rgba(70,170,240,.7), inset 0 0 2cqw rgba(70,170,240,.5);z-index:1}
+  .ring::after{content:"";position:absolute;inset:-6% 8%;border-radius:50%;border:.3cqw dashed rgba(220,235,255,.6);border-left-color:transparent;border-bottom-color:transparent}
+  .bottom{position:absolute;left:0;right:0;top:40%;bottom:0;background:repeating-linear-gradient(135deg,#1d2430 0 3cqw,#202836 3cqw 6cqw);display:grid;place-items:center;text-align:center;border-top:.4cqw dashed #556}
+  .bottom b{font-size:4cqw;color:#9aa6b8}
+  .bottom span{display:block;font-size:2.6cqw;color:#7c8798;margin-top:1cqw}
+  /* açıklama paneli */
+  .notes{max-width:380px;background:#2b2b2b;border:1px solid #3a3a3a;border-radius:10px;padding:16px;font-size:14px;line-height:1.5}
+  .notes h2{font-size:16px;margin-bottom:8px}
+  .notes li{margin:0 0 8px 18px}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle;margin-right:4px;border:1px solid #555}
+  @media (max-width:820px){body{flex-direction:column;align-items:center}.notes{max-width:none;width:100%}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="wall"></div>
+  <div class="tv">
+    <div class="screen">
+      <svg class="mtn" viewBox="0 0 100 100" preserveAspectRatio="none"><polygon points="0,70 12,52 22,62 35,40 48,58 60,45 72,60 85,38 100,55 100,100 0,100" fill="#2a3550"/><polygon points="0,85 15,72 30,80 45,66 62,78 78,68 100,80 100,100 0,100" fill="#1c2640"/></svg>
+      <div class="lanes">
+        <!-- Şerit 1: Lazer Çubuğu – Afganistan (lider) -->
+        <div class="lane">
+          <div class="badge"><span class="ic">🪄</span>1205</div>
+          <div class="avatar" style="left:22%"></div>
+          <div class="avatar" style="left:46%"></div>
+          <img class="animal" src="hayvanlar/afghanistan.png" style="left:82%" alt="">
+        </div>
+        <!-- Şerit 2: GG – Suriye -->
+        <div class="lane">
+          <div class="badge"><span class="ic" style="font-size:1.8cqw;font-weight:900;background:linear-gradient(90deg,#ffd23f,#ff5fa2,#4fd1ff);-webkit-background-clip:text;color:transparent">GG</span>1186</div>
+          <div class="ring" style="left:70%"></div>
+          <img class="animal" src="hayvanlar/suriye.png" style="left:81%" alt="">
+        </div>
+        <!-- Şerit 3: Gül – Kürdistan -->
+        <div class="lane">
+          <div class="badge"><span class="ic">🌹</span>675</div>
+          <img class="animal" src="hayvanlar/kurdistan.png" style="left:62%" alt="">
+        </div>
+        <!-- Şerit 4: TikTok – Türkiye -->
+        <div class="lane">
+          <div class="badge"><span class="ic"><svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M14 3v11.5a3.5 3.5 0 1 1-3-3.46" fill="none" stroke="#25f4ee" stroke-width="2.6" transform="translate(-1,0)"/><path d="M14 3v11.5a3.5 3.5 0 1 1-3-3.46M14 3c.5 2.8 2.3 4.4 5 4.6" fill="none" stroke="#fe2c55" stroke-width="2.6" transform="translate(1,0)"/><path d="M14 3v11.5a3.5 3.5 0 1 1-3-3.46M14 3c.5 2.8 2.3 4.4 5 4.6" fill="none" stroke="#fff" stroke-width="2.2"/></svg></span>47</div>
+          <img class="animal" src="hayvanlar/turkiye.png" style="left:41%" alt="">
+        </div>
+        <!-- Şerit 5: Dondurma Külahı – Azerbaycan -->
+        <div class="lane">
+          <div class="badge"><span class="ic">🍦</span>3</div>
+          <img class="animal" src="hayvanlar/azerbaycan.png" style="left:40%" alt="">
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom"><div><b>ALT ALAN</b><span>Videoda burada GTA görüntüsü var.<br>Ne koyacağımızı konuşacağız.</span></div></div>
+</div>
+
+<div class="notes">
+  <h2>Önizleme (hareketsiz)</h2>
+  <ul>
+    <li><b>Sahne:</b> Dikey 9:16 (1080×1920), TikTok LIVE Studio dikey yayın.</li>
+    <li><b>Üst:</b> Videodaki gibi TV çerçevesi içinde oyun, arkasında ahşap/altın duvar rengi.</li>
+    <li><b>Şerit arka planı:</b> <span class="sw" style="background:#0b1220"></span>koyu lacivert, silik dağ silüeti.</li>
+    <li><b>Şerit çizgileri:</b> <span class="sw" style="background:#7cc4ee"></span>parlayan açık mavi.</li>
+    <li><b>Sol rozetler:</b> her şeridin solunda hediye ikonu + sayı (Lazer Çubuğu, GG, Gül, TikTok, Dondurma). İkonlar şimdilik yer tutucu; yayında TikTok'un gerçek hediye resimleri gelecek.</li>
+    <li><b>Hediye gelince (1. şerit):</b> gönderenin profil fotoğrafı rozetin yanında çıkar, sağa kayıp hayvana girer. Burada kaymanın başı ve ortası donmuş halde gösteriliyor.</li>
+    <li><b>Parlama halkası (2. şerit):</b> mavi elips + kesikli yay.</li>
+    <li><b>Konum:</b> sayı arttıkça hayvan sağa gider; lider en sağda.</li>
+    <li><b>Ekranda "hediye at" vb. yazı yok.</b></li>
+  </ul>
+</div>
+</body>
+</html>

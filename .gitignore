@@ -1,0 +1,11 @@
+node_modules/
+veri/
+araclar/rife/
+araclar/ara/
+__pycache__/
+*.log
+
+# 2 GB GTA videosu GitHub'a sığmaz; yeni bilgisayarda yeniden indirilir (KURULUM-YENI-PC.md)
+public/video/*.mp4
+.claude/settings.local.json
+onizleme/ses/

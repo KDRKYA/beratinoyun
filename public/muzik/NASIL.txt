@@ -1,0 +1,8 @@
+﻿MUZIK KLASORLERI
+Her ulkenin klasorune muzik dosyasi (.mp3 .m4a .wav .ogg) koy:
+  afghanistan / suriye / kurdistan / turkiye / azerbaycan
+- Adi "mars" ile baslayan dosya o ulkenin MARSI sayilir (ornek: mars.ogg).
+  Bir ulke birinci olunca once marsi calar.
+- Diger dosyalar marstan sonra sirayla calar (ornek: 01-halay.mp3, 02-lay-lay.mp3).
+- Dosya ekleyince oyun 30 saniye icinde kendisi gorur.
+- Ses seviyesi: public/muzik.js -> MUZIK_SEVIYE

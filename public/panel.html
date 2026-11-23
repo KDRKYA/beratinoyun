@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Yarış Paneli</title>
+<style>
+  :root{--bg:#12161f;--kart:#1b2130;--kenar:#2a3346;--yazi:#e8ecf3;--soluk:#93a0b6;--mavi:#3b8cff;--yesil:#2fbf71;--kirmizi:#e5484d;--sari:#f5b83d}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--yazi);font:15px/1.45 "Segoe UI",system-ui,sans-serif}
+  header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 20px;background:#0d1118;border-bottom:1px solid var(--kenar)}
+  h1{font-size:18px;margin:0}
+  main{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;padding:16px 20px;max-width:1400px;margin:auto}
+  @media (max-width:980px){main{grid-template-columns:1fr}}
+  .kart{background:var(--kart);border:1px solid var(--kenar);border-radius:12px;padding:16px}
+  .kart h2{font-size:15px;margin:0 0 12px;color:var(--soluk);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  button{font:inherit;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;color:#fff;background:#2c3550}
+  button:hover{filter:brightness(1.15)}
+  .mavi{background:var(--mavi)}.yesil{background:var(--yesil)}.kirmizi{background:var(--kirmizi)}
+  input,select{font:inherit;background:#0f1420;color:var(--yazi);border:1px solid var(--kenar);border-radius:8px;padding:8px 10px}
+  .durum{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:#0f1420;border:1px solid var(--kenar);font-size:14px}
+  .nokta{width:10px;height:10px;border-radius:50%;background:var(--soluk)}
+  .bagli .nokta{background:var(--yesil)}.baglaniyor .nokta,.yeniden .nokta{background:var(--sari)}.hata .nokta{background:var(--kirmizi)}
+  .serit{display:grid;grid-template-columns:34px 52px 1fr auto;gap:12px;align-items:center;padding:10px;border-radius:10px;background:#141a27;margin-bottom:8px}
+  .sira{font-size:20px;font-weight:800;color:var(--soluk);text-align:center}
+  .ikon{width:44px;height:44px;border-radius:8px;background:#0f1420;display:grid;place-items:center;overflow:hidden;font-size:22px}
+  .ikon img{width:100%;height:100%;object-fit:contain}
+  .bilgi b{font-size:16px}.bilgi small{display:block;color:var(--soluk)}
+  .puan{font-size:28px;font-weight:800;min-width:90px;text-align:right}
+  .eylem{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  .arti{font-size:20px;font-weight:800;padding:10px 18px;background:var(--yesil)}
+  .kucuk{padding:6px 10px;font-size:13px}
+  .ayar{width:90px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td,th{padding:6px 8px;border-bottom:1px solid var(--kenar);text-align:left;vertical-align:middle}
+  th{color:var(--soluk);font-weight:600}
+  .log{max-height:520px;overflow:auto}
+  .rozet{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;background:#2c3550}
+  .r-tiktok{background:#fe2c55}.r-panel{background:var(--mavi)}.r-sifirla{background:var(--kirmizi)}.r-baglanti{background:#555}.r-eslesmeyen{background:var(--sari);color:#111}
+  .satir{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .ipucu{color:var(--soluk);font-size:13px;margin-top:8px}
+  a{color:#7fb3ff}
+  /* Telefon: hızlı dokunuşta çift-dokunuş yakınlaştırması olmasın, yazı alanına dokununca sayfa büyümesin */
+  html{touch-action:manipulation;-webkit-text-size-adjust:100%}
+  button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+  input,select{font-size:16px}
+  #seritler{display:flex;flex-direction:column}
+  .ses-satir{display:grid;grid-template-columns:110px 40px 1fr 40px 56px;gap:8px;align-items:center;margin-bottom:10px}
+  .ses-satir input[type=range]{width:100%;padding:0;accent-color:var(--mavi);height:28px}
+  .ses-satir button{padding:8px 0;font-size:18px}
+  .ses-satir b{text-align:right}
+  @media (max-width:600px){.ses-satir{grid-template-columns:86px 40px 1fr 40px 50px;gap:6px;font-size:14px}}
+  .arti:active{transform:scale(.94);filter:brightness(1.25)}
+  .arti-cok{background:#1f8a55;font-size:16px;padding:10px 12px}
+  @media (max-width:600px){
+    header{padding:10px 12px} main{padding:10px 8px;gap:10px} .kart{padding:10px}
+    .serit{grid-template-columns:26px 40px 1fr auto;gap:8px;padding:8px}
+    .ikon{width:38px;height:38px;font-size:19px}
+    .bilgi small{font-size:11px}
+    .puan{font-size:24px;min-width:64px;text-align:left}
+    .serit .eylem{grid-column:1/-1;justify-content:stretch}
+    .serit .arti{flex:2 1 0;font-size:26px;padding:12px}
+    .serit .arti-cok{flex:1 1 0;font-size:17px;padding:12px 4px}
+    .serit .ayar{flex:1 1 calc(100% - 150px)}
+    .ayar{flex:1;width:auto;min-width:0}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🐺 Yarış Paneli</h1>
+  <div class="satir">
+    <span id="durum" class="durum"><span class="nokta"></span><span id="durumYazi">Sunucuya bağlanıyor…</span></span>
+    <input id="kullanici" placeholder="TikTok kullanıcı adı" size="18">
+    <button class="mavi" id="baglanBtn">Bağlan</button>
+    <button id="kesBtn">Kes</button>
+  </div>
+  <div class="satir" id="telefonAdres" style="font-size:13px;opacity:.85"></div>
+</header>
+<main>
+  <section>
+    <div class="kart" style="margin-bottom:16px">
+      <h2>Yayın sesi</h2>
+      <div class="ses-satir"><span>🔊 Vuruş (tık)</span><button class="kucuk" data-ses="tik" data-adim="-0.1">−</button><input type="range" id="sesTik" min="0" max="2.5" step="0.05"><button class="kucuk" data-ses="tik" data-adim="0.1">+</button><b id="sesTikYazi">–</b></div>
+      <div class="ses-satir"><span>🎵 Müzik</span><button class="kucuk" data-ses="muzik" data-adim="-0.05">−</button><input type="range" id="sesMuzik" min="0" max="1" step="0.01"><button class="kucuk" data-ses="muzik" data-adim="0.05">+</button><b id="sesMuzikYazi">–</b></div>
+      <div class="ipucu">Sadece yayındaki oyun sayfasının sesini değiştirir, anında uygulanır ve kaydedilir. Panelde ses çalmaz.</div>
+    </div>
+    <div class="kart">
+      <h2>Şeritler (sıralama canlı)</h2>
+      <div id="seritler"></div>
+      <div class="satir" style="justify-content:space-between;margin-top:8px">
+        <span class="ipucu">+1 butonu TikTok hediyesi gibi çalışır (avatar uçar, hayvan ilerler). Sayaçlar kendiliğinden asla sıfırlanmaz.</span>
+        <button class="kirmizi" id="hepsiniSifirla">Hepsini sıfırla</button>
+      </div>
+    </div>
+    <div class="kart" style="margin-top:16px">
+      <h2>Hediye eşleştirme</h2>
+      <table><thead><tr><th>Hediye</th><th>ID</th><th>Gelen</th><th>Şerit</th></tr></thead><tbody id="hediyeler"></tbody></table>
+      <div class="ipucu">Yayında gelen her hediye burada listelenir. Bir hediye yanlış şeritteyse ya da hiç eşleşmemişse buradan seç.</div>
+    </div>
+  </section>
+  <section>
+    <div class="kart">
+      <h2>Oyun</h2>
+      <div class="satir">
+        <a href="/oyun.html?arka" target="_blank">Oyunu aç (önizleme)</a>
+        <span class="ipucu">OBS adresi: <code>http://localhost:7777/oyun.html</code> — 1080 × 1920</span>
+      </div>
+    </div>
+    <div class="kart" style="margin-top:16px">
+      <h2>Kayıtlar (log)</h2>
+      <div class="log"><table><thead><tr><th>Zaman</th><th>Olay</th><th>Ayrıntı</th></tr></thead><tbody id="log"></tbody></table></div>
+      <div class="satir" style="margin-top:8px"><button id="eskiBtn" class="kucuk">Daha eski kayıtları yükle</button><span class="ipucu" id="logBilgi"></span></div>
+    </div>
+  </section>
+</main>
+<script>
+if (location.protocol === 'file:') location.replace('http://localhost:7777/panel.html');
+const $ = s => document.querySelector(s);
+let ws, durum = { seritler: [] }, logSayfa = 0;
+const IKON = { afghanistan: '🪄', suriye: 'GG', kurdistan: '🌹', turkiye: '🎵', azerbaycan: '🍦' };
+const BAYRAK = { afghanistan: '🇦🇫', suriye: '🇸🇾', kurdistan: '☀️', turkiye: '🇹🇷', azerbaycan: '🇦🇿' };
+const DURUM_YAZI = { kapali: 'Kapalı', baglaniyor: 'Bağlanıyor', bagli: 'Bağlı', yeniden: 'Yeniden deniyor', hata: 'Hata' };
+const gonder = m => ws && ws.readyState === 1 && ws.send(JSON.stringify(m));
+// ---- Yayın sesi (oyun sayfasının vuruş ve müzik sesi) ----
+let sesDeger = { tik: 1.4, muzik: 0.5 }, sesSurukle = false, sesZaman = null;
+function sesGoster(s) {
+  sesDeger = { ...sesDeger, ...s };
+  if (!sesSurukle) { $('#sesTik').value = sesDeger.tik; $('#sesMuzik').value = sesDeger.muzik; }
+  $('#sesTikYazi').textContent = Math.round(sesDeger.tik * 100) + '%';
+  $('#sesMuzikYazi').textContent = Math.round(sesDeger.muzik * 100) + '%';
+}
+function sesGonder(alan, v) {
+  const sinir = alan === 'tik' ? 2.5 : 1;
+  sesDeger[alan] = Math.round(Math.max(0, Math.min(sinir, v)) * 100) / 100;
+  sesGoster({});
+  clearTimeout(sesZaman); sesZaman = setTimeout(() => gonder({ tip: 'ses', [alan]: sesDeger[alan] }), 60);
+}
+for (const [id, alan] of [['#sesTik', 'tik'], ['#sesMuzik', 'muzik']]) {
+  const el = $(id);
+  el.addEventListener('input', () => { sesSurukle = true; sesGonder(alan, Number(el.value)); });
+  el.addEventListener('change', () => { sesSurukle = false; });
+}
+document.querySelectorAll('[data-ses]').forEach(b => b.addEventListener('click', () => {
+  const alan = b.dataset.ses; sesGonder(alan, sesDeger[alan] + Number(b.dataset.adim));
+  $(alan === 'tik' ? '#sesTik' : '#sesMuzik').value = sesDeger[alan];
+}));
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const seritAd = id => { const s = durum.seritler.find(x => x.id === id); return s ? s.ad + ' (' + s.hediye + ')' : id; };
+
+function ciz() {
+  // Şeritler bir kez oluşturulur; sonra sadece puan/sıra/yazı güncellenir (sayfa zıplamaz, +1 tuşu parmağın altından kaçmaz, resimler yeniden yüklenmez)
+  const sirali = [...durum.seritler].sort((a, b) => b.puan - a.puan);
+  const kap = $('#seritler');
+  for (const s of durum.seritler) {
+    let el = kap.querySelector(`.serit[data-id="${s.id}"]`);
+    if (!el) {
+      el = document.createElement('div'); el.className = 'serit'; el.dataset.id = s.id;
+      el.innerHTML = `
+      <div class="sira"></div>
+      <div class="ikon"></div>
+      <div class="bilgi"><b></b><small></small></div>
+      <div class="eylem">
+        <span class="puan"></span>
+        <button class="arti" data-arti="${s.id}">+1</button>
+        <button class="arti arti-cok" data-arti="${s.id}" data-miktar="10">+10</button>
+        <button class="arti arti-cok" data-arti="${s.id}" data-miktar="50">+50</button>
+        <input class="ayar" type="number" inputmode="numeric" min="0" placeholder="puan" data-ayar="${s.id}">
+        <button class="kucuk" data-ayarla="${s.id}">Ayarla</button>
+        <button class="kucuk kirmizi" data-sifirla="${s.id}">Sıfırla</button>
+      </div>`;
+      kap.appendChild(el);
+    }
+    const sira = sirali.indexOf(s);
+    el.style.order = sira;
+    el.querySelector('.sira').textContent = sira + 1;
+    el.querySelector('.puan').textContent = s.puan;
+    const ikonHtml = `<img src="ikon/${esc(s.id)}.png" alt="${esc(s.hediye)}">`;   // TikTok'un kendi hediye ikonu
+    if (el.dataset.ikon !== ikonHtml) { el.querySelector('.ikon').innerHTML = ikonHtml; el.dataset.ikon = ikonHtml; }
+    el.querySelector('.bilgi b').textContent = (BAYRAK[s.id] || '') + ' ' + s.ad;
+    const alt = esc(s.hediye) + ' · ID: ' + (s.giftIds.length ? s.giftIds.join(', ') : '<span style="color:var(--sari)">eşleşmedi</span>');
+    const sm = el.querySelector('.bilgi small'); if (sm.innerHTML !== alt) sm.innerHTML = alt;
+  }
+  for (const el of [...kap.children]) if (!durum.seritler.some(s => s.id === el.dataset.id)) el.remove();
+  const b = durum.baglanti || { durum: 'kapali', mesaj: '' };
+  $('#durum').className = 'durum ' + b.durum;
+  $('#durumYazi').textContent = (DURUM_YAZI[b.durum] || b.durum) + (b.mesaj ? ' – ' + b.mesaj : '');
+  if (document.activeElement !== $('#kullanici') && !$('#kullanici').value) $('#kullanici').value = durum.kullanici || '';
+  const secenek = sec => '<option value="">— yok —</option>' + durum.seritler.map(s => `<option value="${s.id}" ${s.id === sec ? 'selected' : ''}>${esc(s.ad)} (${esc(s.hediye)})</option>`).join('');
+  $('#hediyeler').innerHTML = (durum.sonHediyeler || []).map(h => {
+    const es = durum.seritler.find(s => s.giftIds.includes(h.giftId));
+    return `<tr><td>${h.ikon ? `<img src="${esc(h.ikon)}" referrerpolicy="no-referrer" width="28" height="28" style="vertical-align:middle"> ` : ''}${esc(h.ad)}</td><td>${h.giftId}</td><td>${h.sayi}</td>
+      <td><select data-esle="${h.giftId}">${secenek(es && es.id)}</select></td></tr>`;
+  }).join('') || '<tr><td colspan="4" style="color:var(--soluk)">Henüz TikTok\'tan hediye gelmedi.</td></tr>';
+}
+
+function logSatir(k) {
+  const z = new Date(k.t).toLocaleString('tr-TR');
+  let olay = k.olay, ayr = '';
+  if (k.olay === 'puan') { olay = k.kaynak; ayr = `${esc(seritAd(k.serit))}: ${k.miktar > 0 ? '+' : ''}${k.miktar} → ${k.puan}${k.kullanici ? ' · ' + esc(k.kullanici) : ''}`; }
+  else if (k.olay === 'sifirla') ayr = 'Sıfırlandı: ' + (k.serit === 'hepsi' ? 'tüm şeritler' : esc(seritAd(k.serit)));
+  else if (k.olay === 'puanAyarla') ayr = `${esc(seritAd(k.serit))} puanı ${k.puan} yapıldı`;
+  else if (k.olay === 'esle') ayr = `Hediye ${k.giftId} → ${k.serit === 'yok' ? 'eşleşme kaldırıldı' : esc(seritAd(k.serit))}`;
+  else if (k.olay === 'eslesmeyen') ayr = `${esc(k.ad)} (ID ${k.giftId}) x${k.miktar} · ${esc(k.kullanici)} — şeride bağlı değil`;
+  else ayr = esc(k.mesaj || '');
+  return `<tr><td style="white-space:nowrap">${z}</td><td><span class="rozet r-${k.kaynak || k.olay}">${esc(olay)}</span></td><td>${ayr}</td></tr>`;
+}
+// telefondan giriş adresi (aynı Wi-Fi) — IP değişirse burada hep güncel görünür
+async function adresGoster() {
+  try {
+    const r = await (await fetch('/api/adres')).json();
+    $('#telefonAdres').innerHTML = '📱 Telefondan (aynı Wi-Fi): ' + r.ipler.map(ip => `oyun <b>http://${ip}:${r.port}/oyun.html?arka</b> · panel <b>http://${ip}:${r.port}/panel.html</b>`).join(' | ');
+  } catch {}
+}
+adresGoster(); setInterval(adresGoster, 30000);
+async function loglariYukle(sifirdan) {
+  if (sifirdan) { logSayfa = 0; $('#log').innerHTML = ''; }
+  const r = await (await fetch('/api/log?sayfa=' + logSayfa)).json();
+  $('#log').insertAdjacentHTML('beforeend', r.kayitlar.map(logSatir).join(''));
+  const yuklenen = Math.min(r.toplam, (logSayfa + 1) * 200);
+  $('#logBilgi').textContent = `${yuklenen} / ${r.toplam} kayıt gösteriliyor`;
+  $('#eskiBtn').disabled = yuklenen >= r.toplam;
+  logSayfa++;
+}
+
+function soket() {
+  ws = new WebSocket('ws://' + location.host + '/?rol=panel');
+  ws.onopen = () => loglariYukle(true);
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.ses) sesGoster(m.ses);
+    if (m.tip === 'durum') { durum = m; ciz(); }
+    else if (m.tip === 'log') $('#log').insertAdjacentHTML('afterbegin', logSatir(m.kayit));
+  };
+  ws.onclose = () => { $('#durum').className = 'durum hata'; $('#durumYazi').textContent = 'Sunucu kapalı – başlat.bat çalışıyor mu?'; setTimeout(soket, 2000); };
+}
+
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (t.dataset.arti) gonder({ tip: 'arti', serit: t.dataset.arti, miktar: Number(t.dataset.miktar) || 1 });
+  if (t.dataset.sifirla && confirm(seritAd(t.dataset.sifirla) + ' sıfırlansın mı?')) gonder({ tip: 'sifirla', serit: t.dataset.sifirla });
+  if (t.dataset.ayarla) { const v = document.querySelector(`[data-ayar="${t.dataset.ayarla}"]`).value; if (v !== '') gonder({ tip: 'puanAyarla', serit: t.dataset.ayarla, puan: Number(v) }); }
+});
+document.addEventListener('change', e => { if (e.target.dataset.esle) gonder({ tip: 'esle', giftId: e.target.dataset.esle, serit: e.target.value }); });
+$('#hepsiniSifirla').onclick = () => confirm('TÜM şeritlerin puanı 0 olsun mu? (Kayıtlar silinmez)') && gonder({ tip: 'sifirla' });
+$('#baglanBtn').onclick = () => gonder({ tip: 'baglan', kullanici: $('#kullanici').value });
+$('#kesBtn').onclick = () => gonder({ tip: 'kes' });
+$('#kullanici').addEventListener('keydown', e => e.key === 'Enter' && $('#baglanBtn').click());
+$('#eskiBtn').onclick = () => loglariYukle(false);
+soket();
+</script>
+</body>
+</html>

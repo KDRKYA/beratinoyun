@@ -1,0 +1,7 @@
+{
+  "turkiye":     { "dosya": "0-dombra.mp3",      "bas": 49.48,  "son": 90.07,  "not": "Dombra Remix, 112 BPM, en hareketli 40 sn (otomatik bulundu). Senin ilk seçimin: bas 40" },
+  "kurdistan":   { "dosya": "0-leyle-leyle.mp3", "bas": 16.67,  "son": 57.07,  "not": "Leyle Leyle Kurdish Trap Remix, 89 BPM. Senin ilk seçimin: bas 15" },
+  "suriye":      { "dosya": "0-zdiib.mp3",       "bas": 94.92,  "son": 135.33, "not": "Zdiib Remix, 89 BPM. Senin ilk seçimin: bas 35" },
+  "afghanistan": { "dosya": "0-rabi-sakhi.mp3",  "bas": 187.5,  "son": 228.46, "not": "Rabi Sakhi To Ki Mori, 123 BPM. Senin ilk seçimin: bas 120" },
+  "azerbaycan":  { "dosya": "0-gara-goz.mp3",    "bas": 224.79, "son": 265.66, "not": "Gara Göz, 117 BPM. Senin ilk seçimin: bas 40" }
+}

@@ -1,0 +1,2 @@
+I'm making a friendly, family-friendly animated racing game for my live stream. Each country is represented by a cute mascot animal wearing its national flag colors, like sports team mascots at the Olympics or the World Cup. It's purely for fun and celebrates different cultures equally, with no political, violent or hateful meaning. The image is a game sprite (a single running character) for this race. Please create:
+
