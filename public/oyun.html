@@ -78,8 +78,10 @@ const SES_KIRP = 0.13;                        // vuruştan sonra kaç saniye ça
 const SES_EN_FAZLA = 12;                      // aynı anda en fazla kaç tık sesi (komboda ses patlamasın)
 const SES_ISLE = false;                       // false: ses dosyası olduğu gibi çalar. true: aşağıdaki kalınlaştırma + bas eklenir (eski mp3 için)
 const SES_KALINLIK = 0.8;                     // sadece SES_ISLE true iken: 1 = dosyanın kendi sesi, küçüldükçe daha kalın/tok
-const BURUN_MIN = EKRAN.x + EKRAN.w * 0.46;   // başlangıç çizgisi (burun)
-const BURUN_MAX = EKRAN.x + EKRAN.w * 0.95;   // liderin en ileri noktası
+// Adres çubuğundan ayarlanabilir: oyun.html?bas=0.32&son=0.68  (TikTok'un sağdaki dilek listesi kutusundan kaçmak için)
+const _q = new URLSearchParams(location.search), _oran = (k, v) => { const n = parseFloat(_q.get(k)); return n > 0 && n < 1 ? n : v; };
+const BURUN_MIN = EKRAN.x + EKRAN.w * _oran('bas', 0.46);   // başlangıç çizgisi (burun)
+const BURUN_MAX = EKRAN.x + EKRAN.w * _oran('son', 0.95);   // liderin en ileri noktası
 const YUMUSAT = 20;                           // puan farkı -> boşluk yumuşatma sabiti
 const params = new URLSearchParams(location.search);
 if (params.has('arka')) document.body.classList.add('arka');
