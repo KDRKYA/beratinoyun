@@ -443,6 +443,14 @@ const BAYRAK_RENK = {
   azerbaycan: ['#00b5e2', '#ef3340', '#16c25a'],
 };
 const LAMBA_ADIM = 3.5;   // her renk kaç saniye (geçiş dahil) — yavaş, gerçek RGB lamba gibi
+// Çakar (birinci olan ülkenin renkleri arkadaki LED'de yanıp söner)
+const CAKAR_ADIM = 0.55;      // her renk kaç saniye sürer (bu sürede 2 kez çakar)
+const CAKAR_ARA = 0.17;       // aynı renkteki iki çakma arası (sn)
+const CAKAR_YANIK = 0.06;     // her çakmada LED'in tam yanık kaldığı süre (sn)
+const CAKAR_SONUM = 0.07;     // sönme hızı (sn) — gerçek LED gibi kısa bir kuyruk
+const CAKAR_TABAN = 0.22;     // sönükken kalan ışık (0 = tamamen kapanır). Düşük ama 0 değil: gerçek LED çubuk gibi
+const CAKAR_DUVAR = 330;      // duvara vuran ışığın yarıçapı (piksel)
+const CAKAR_DUVAR_GUC = 0.16; // duvara vuran ışığın şiddeti (0-1). Yükseltirsen daha parlak olur
 let lambaRgb = [255, 255, 255];
 function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
 function hslRgb(h) { const f = n => { const k = (n + h / 30) % 12; return 255 * (.5 - .5 * Math.max(-1, Math.min(k - 3, 9 - k, 1))); }; return [f(0), f(8), f(4)]; }
@@ -451,15 +459,21 @@ function odaIsiklari(simdi, dt) {
   const t = simdi / 1000;
   // hedef renk: birinci varsa onun bayrak renkleri arasında yumuşak geçiş, yoksa RGB gökkuşağı
   const sirali = [...seritler].sort((a, b) => b.puan - a.puan), lider = sirali[0];
-  let hedef;
+  let hedef, isik = 1;   // isik: LED'in o anki parlaklığı (0 = sönük, 1 = tam yanık)
   const liste = lider && lider.puan > 0 && !(sirali[1] && sirali[1].puan === lider.puan) && BAYRAK_RENK[lider.id];
   if (liste) {
-    const f = t / LAMBA_ADIM, i = Math.floor(f) % liste.length, j = (i + 1) % liste.length;
-    let u = f % 1; u = u < .4 ? 0 : (u - .4) / .6; u = u * u * (3 - 2 * u);   // renkte bir süre dur, sonra uzun ve yumuşak geç
-    const a = hexRgb(liste[i]), b = hexRgb(liste[j]); hedef = a.map((v, k) => v + (b[k] - v) * u);
-  } else hedef = hslRgb((t * 14) % 360);
-  const k = 1 - Math.pow(.15, dt / 1000);   // lider değişince de renk birden atlamasın
-  lambaRgb = lambaRgb.map((v, n) => v + (hedef[n] - v) * k);
+    // Çakar: her bayrak rengi art arda iki kez çakar, sonra sıradaki renge geçer (polis lambası gibi).
+    // Renk, LED söndüğü anda değişir; böylece renk geçişi göze batmaz.
+    const f = t / CAKAR_ADIM, i = Math.floor(f) % liste.length, x = (f % 1) * CAKAR_ADIM;
+    hedef = hexRgb(liste[i]);
+    const flas = d => d < 0 ? 0 : d < CAKAR_YANIK ? 1 - Math.pow(1 - d / CAKAR_YANIK, 3) * .15 : Math.exp(-(d - CAKAR_YANIK) / CAKAR_SONUM);
+    isik = CAKAR_TABAN + (1 - CAKAR_TABAN) * Math.max(flas(x), flas(x - CAKAR_ARA));
+    lambaRgb = hedef;
+  } else {
+    hedef = hslRgb((t * 14) % 360);
+    const k = 1 - Math.pow(.15, dt / 1000);
+    lambaRgb = lambaRgb.map((v, n) => v + (hedef[n] - v) * k);
+  }
   // gerçek LED gibi: renk biraz beyaza karışık (aşırı doygun "oyun" rengi değil)
   const [r, g, b] = lambaRgb.map(v => Math.round(v * .82 + 255 * .18)), L = SAHNE.lamba;
   const mx = (L.x1 + L.x2) / 2, my = (L.y1 + L.y2) / 2;
@@ -472,14 +486,34 @@ function odaIsiklari(simdi, dt) {
     tc.fillStyle = `rgb(${r},${g},${b})`; tc.fillRect(0, 0, m.w, m.h);
     tc.globalCompositeOperation = 'destination-in'; tc.drawImage(m.maske, 0, 0);
     cx.globalCompositeOperation = 'color'; cx.drawImage(m.renkli, m.x, m.y);
+    if (isik < 1) {
+      // LED sönükken fotoğraftaki parlak çubuk ve halesi de kararsın (sadece ışığın olduğu yerler, duvar değil)
+      const gri = Math.round(255 * (.30 + .70 * isik));
+      tc.globalCompositeOperation = 'source-over'; tc.clearRect(0, 0, m.w, m.h);
+      tc.fillStyle = `rgb(${gri},${gri},${gri})`; tc.fillRect(0, 0, m.w, m.h);
+      tc.globalCompositeOperation = 'destination-in'; tc.drawImage(m.maske, 0, 0);
+      cx.globalCompositeOperation = 'multiply'; cx.drawImage(m.renkli, m.x, m.y);
+    }
   }
-  // duvara düşen yumuşak renkli ışık: çubuk boyunca uzanan, hafif ve dağınık (fark edilmeyecek kadar doğal)
+  // duvara düşen ışık: çubuğun hemen çevresi (yoğun) + duvarda geniş, çok hafif yayılan renk. Çakarla birlikte yanıp söner
   cx.globalCompositeOperation = 'screen';
+  // ışık sadece duvara düşsün, TV ekranının üstüne taşmasın (gerçekte ekran ışığı yansıtmaz)
+  cx.beginPath(); cx.rect(0, 0, W, DUVAR_ALT); cx.rect(EKRAN.x - 6, EKRAN.y - 6, EKRAN.w + 12, EKRAN.h + 12); cx.clip('evenodd');
+  cx.save();
   cx.translate(mx, my); cx.rotate(Math.atan2(L.y2 - L.y1, L.x2 - L.x1) - Math.PI / 2); cx.scale(.75, 1.25);
-  const gr = cx.createRadialGradient(0, 0, 2, 0, 0, 170);
-  gr.addColorStop(0, `rgba(${r},${g},${b},.40)`); gr.addColorStop(.25, `rgba(${r},${g},${b},.17)`);
-  gr.addColorStop(.6, `rgba(${r},${g},${b},.05)`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
+  const gr = cx.createRadialGradient(0, 0, 2, 0, 0, 170), y1 = .40 * isik;
+  gr.addColorStop(0, `rgba(${r},${g},${b},${y1})`); gr.addColorStop(.25, `rgba(${r},${g},${b},${y1 * .42})`);
+  gr.addColorStop(.6, `rgba(${r},${g},${b},${y1 * .12})`); gr.addColorStop(1, `rgba(${r},${g},${b},0)`);
   cx.fillStyle = gr; cx.fillRect(-170, -170, 340, 340);
+  cx.restore();
+  if (liste) {
+    // duvara vuran geniş yansıma: lambanın arkasındaki duvarda yumuşak, düşük şiddetli renk (göz yormasın)
+    const gy = cx.createRadialGradient(mx, my + 10, 10, mx, my + 10, CAKAR_DUVAR);
+    const y2 = CAKAR_DUVAR_GUC * Math.max(0, (isik - CAKAR_TABAN) / (1 - CAKAR_TABAN));
+    gy.addColorStop(0, `rgba(${r},${g},${b},${y2})`); gy.addColorStop(.35, `rgba(${r},${g},${b},${y2 * .45})`);
+    gy.addColorStop(.7, `rgba(${r},${g},${b},${y2 * .12})`); gy.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    cx.fillStyle = gy; cx.fillRect(mx - CAKAR_DUVAR, my + 10 - CAKAR_DUVAR, CAKAR_DUVAR * 2, CAKAR_DUVAR * 2);
+  }
   cx.restore();
   // ekranın üst çerçevesine taşan ışık olmasın: ekranın kendisi zaten oyunla çizilecek
   // JBL ışığı: gerçek hoparlör gibi yavaşça söner-yanar (sert yanıp sönme yok)
