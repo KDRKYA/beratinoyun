@@ -368,25 +368,30 @@ function halkaCiz(x, y, w, h, t) {
 const altVideo = VIDEO_DOSYA ? Object.assign(document.createElement('video'), { src: VIDEO_DOSYA, muted: true, loop: true, playsInline: true, autoplay: true, preload: 'auto' }) : null;
 if (altVideo) { altVideo.setAttribute('playsinline', ''); altVideo.play().catch(() => {}); addEventListener('pointerdown', () => altVideo.paused && altVideo.play().catch(() => {})); }
 // Yerleşim (panelden ayarlanır): ust = üst sahnenin ölçeği, videoX = videonun yatay kaydırması (-1 sol, 0 orta, 1 sağ)
-const YER = { ust: 1, videoX: 0, oyunX: 0, oyunSol: 0, oyunSag: 0, oyunUst: 0, oyunAlt: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 };
+const YER = { ust: 1, videoX: 0, oyunX: 0, oyunY: 0, videoY: 0, videoZoom: 1, oyunSol: 0, oyunSag: 0, oyunUst: 0, oyunAlt: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 };
 // oyunX: üstteki oyunun yatay kaydırması (-1 sol, 1 sağ; genişliğin %25'i kadar). oyunSol/oyunSag: üstteki oyunun yanlarından kesilen pay, yeri koyu kalır. oyunUst/oyunAlt: üstünden/altından kesilir, kalan kısım yukarı toplanır, video da o kadar yukarı uzar (0-0.4)
 // videoKirp/videoAlt/videoSol/videoSag: videonun GÖRÜNEN kısmının üst/alt/sol/sağından kesilen pay (0-0.4); kalan kısım alanı doldurur
 const OYUN_KAYMA = 0.25;
-const ustYukseklik = () => Math.round(DUVAR_ALT * YER.ust * Math.max(.1, 1 - YER.oyunUst - YER.oyunAlt));   // üst sahnenin ekrandaki yüksekliği
+// oyunY: üstteki oyunun dikey kaydırması (-1 yukarı, 1 aşağı; sahne yüksekliğinin %30'u kadar). Video oyunun altından başlar
+// videoY: videonun dikey kaydırması, videoZoom: videoyu yakınlaştırma (1 = normal). Yakınlaşınca X/Y kaydırma payı artar
+const OYUN_DIKEY = 0.3;
+const oyunKaymaY = () => Math.round(YER.oyunY * OYUN_DIKEY * DUVAR_ALT * YER.ust);
+const ustYukseklik = () => Math.round(DUVAR_ALT * YER.ust * Math.max(.1, 1 - YER.oyunUst - YER.oyunAlt)) + oyunKaymaY();   // üst sahnenin ekranda bittiği yer
 function altVideoCiz() {
   if (!altVideo || altVideo.readyState < 2 || !altVideo.videoWidth) return;
   const y0 = ustYukseklik() - 2, aw = W, ah = H - y0, vw = altVideo.videoWidth;
   if (ah <= 0) return;
   const vh = altVideo.videoHeight;
   // 1) "cover": alanı doldur, taşanı kırp (yatayda videoX ile kaydırılır)
-  let o = Math.max(aw / vw, ah / vh), sw = aw / o, sh = ah / o, sx = (vw - sw) * (YER.videoX + 1) / 2, sy = (vh - sh) / 2;
+  const px = (YER.videoX + 1) / 2, py = (YER.videoY + 1) / 2;   // kaydırma oranları (0 = sol/üst, 1 = sağ/alt)
+  let o = Math.max(aw / vw, ah / vh) * Math.max(1, YER.videoZoom), sw = aw / o, sh = ah / o, sx = (vw - sw) * px, sy = (vh - sh) * py;
   // 2) görünen kısmın kenarlarından kes (videodaki yazılar, siyah bantlar vb.)
   const L = YER.videoSol, R = YER.videoSag, T = YER.videoKirp, B = YER.videoAlt;
   if (L || R || T || B) {
     sx += sw * L; sy += sh * T; sw *= Math.max(.1, 1 - L - R); sh *= Math.max(.1, 1 - T - B);
     // 3) kalan parça alanı bozulmadan (en-boy oranı korunarak) doldursun: gerekirse diğer yönden ortadan kırp
     o = Math.max(aw / sw, ah / sh); const nw = aw / o, nh = ah / o;
-    sx += (sw - nw) / 2; sy += (sh - nh) / 2; sw = nw; sh = nh;
+    sx += (sw - nw) * px; sy += (sh - nh) * py; sw = nw; sh = nh;
   }
   cx.drawImage(altVideo, sx, sy, sw, sh, 0, y0, aw, ah);
 }
@@ -630,8 +635,8 @@ function kare(simdi) {
   cx.clearRect(0, 0, W, H);
   altVideoCiz();
   // üst sahne ölçeklenir: yukarıya yaslı, yatayda ortalı. Küçülünce yanlar koyu zeminle dolar
-  if (YER.ust < 1 || YER.oyunX || YER.oyunSol || YER.oyunSag) { cx.fillStyle = '#07070c'; cx.fillRect(0, 0, W, ustYukseklik()); }
-  cx.save(); cx.translate(W * (1 - YER.ust) / 2 + YER.oyunX * W * OYUN_KAYMA, -DUVAR_ALT * YER.oyunUst * YER.ust); cx.scale(YER.ust, YER.ust);
+  if (YER.ust < 1 || YER.oyunX || YER.oyunY > 0 || YER.oyunSol || YER.oyunSag) { cx.fillStyle = '#07070c'; cx.fillRect(0, 0, W, Math.max(0, ustYukseklik())); }
+  cx.save(); cx.translate(W * (1 - YER.ust) / 2 + YER.oyunX * W * OYUN_KAYMA, -DUVAR_ALT * YER.oyunUst * YER.ust + oyunKaymaY()); cx.scale(YER.ust, YER.ust);
   if (YER.oyunSol || YER.oyunSag || YER.oyunUst || YER.oyunAlt) {   // oyunun kenarlarını kes (üst kesilince sahne yukarı kayar)
     cx.beginPath(); cx.rect(W * YER.oyunSol, DUVAR_ALT * YER.oyunUst, W * Math.max(.1, 1 - YER.oyunSol - YER.oyunSag), DUVAR_ALT * Math.max(.1, 1 - YER.oyunUst - YER.oyunAlt)); cx.clip();
   }
