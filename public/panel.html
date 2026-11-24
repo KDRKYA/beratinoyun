@@ -106,8 +106,9 @@
           <div class="ses-satir"><span>📺 Oyun boyu</span><button class="kucuk" data-yer="ust" data-adim="-0.02">−</button><input type="range" id="yerUstAyar" min="0.6" max="1.5" step="0.01"><button class="kucuk" data-yer="ust" data-adim="0.02">+</button><b id="yerUstYazi">–</b></div>
           <div class="ses-satir"><span>📺 Oyun ◀▶</span><button class="kucuk" data-yer="oyunX" data-adim="-0.05">−</button><input type="range" id="yerOyunAyar" min="-1" max="1" step="0.01"><button class="kucuk" data-yer="oyunX" data-adim="0.05">+</button><b id="yerOyunYazi">–</b></div>
           <div class="ses-satir"><span>🎬 Video ◀▶</span><button class="kucuk" data-yer="videoX" data-adim="-0.05">−</button><input type="range" id="yerVideoAyar" min="-1" max="1" step="0.01"><button class="kucuk" data-yer="videoX" data-adim="0.05">+</button><b id="yerVideoYazi">–</b></div>
+          <div class="ses-satir"><span>✂️ Video üstü</span><button class="kucuk" data-yer="videoKirp" data-adim="-0.01">−</button><input type="range" id="yerKirpAyar" min="0" max="0.3" step="0.005"><button class="kucuk" data-yer="videoKirp" data-adim="0.01">+</button><b id="yerKirpYazi">–</b></div>
           <button id="yerSifirla" class="kucuk" style="margin-top:4px">Varsayılana dön</button>
-          <div class="ipucu" style="margin-top:8px">Soldaki önizlemede <b>sarı çizgiyi</b> yukarı/aşağı sürükle: üstteki oyun küçülür/büyür, alttaki video o kadar uzar/kısalır. <b>Üstteki oyun alanını</b> sağa/sola sürükle: oyun kayar. <b>Yeşil video alanını</b> sağa/sola sürükle: videonun görünen kısmı kayar. Yayındaki oyuna anında uygulanır ve kaydedilir.</div>
+          <div class="ipucu" style="margin-top:8px">Soldaki önizlemede <b>sarı çizgiyi</b> yukarı/aşağı sürükle: üstteki oyun küçülür/büyür, alttaki video o kadar uzar/kısalır. <b>Üstteki oyun alanını</b> sağa/sola sürükle: oyun kayar. <b>Yeşil video alanını</b> sağa/sola sürükle: videonun görünen kısmı kayar. Videonun üstünde yazı varsa (ör. DIRECTOR MODE) <b>Video üstü</b> ile üstünü kes. Yayındaki oyuna anında uygulanır ve kaydedilir.</div>
         </div>
       </div>
     </div>
@@ -173,7 +174,7 @@ document.querySelectorAll('[data-ses]').forEach(b => b.addEventListener('click',
 }));
 // ---- Yerleşim (üst oyunun ölçeği, alt videonun yatay kaydırması) ----
 const SAHNE_ORAN = 896 / 1920;   // üst sahnenin tuvaldeki yüksekliği (ölçek 1'de)
-let yerDeger = { ust: 1, videoX: 0, oyunX: 0 }, yerSurukle = false, yerZaman = null, yerBekleyen = {};
+let yerDeger = { ust: 1, videoX: 0, oyunX: 0, videoKirp: 0 }, yerSurukle = false, yerZaman = null, yerBekleyen = {};
 function yerGoster(y) {
   yerDeger = { ...yerDeger, ...y };
   const kutuH = $('#yerOnizleme').clientHeight || 320;
@@ -184,19 +185,20 @@ function yerGoster(y) {
   $('#yerAlt').style.top = (ustH - 1) + 'px';
   $('#yerCizgi').style.top = ustH + 'px';
   $('#yerVideo').style.left = (-(yerDeger.videoX + 1) / 2 * 70) + '%';   // video alanın %170'i: kaydırma payı %70
-  if (!yerSurukle) { $('#yerUstAyar').value = yerDeger.ust; $('#yerVideoAyar').value = yerDeger.videoX; $('#yerOyunAyar').value = yerDeger.oyunX; }
+  if (!yerSurukle) { $('#yerUstAyar').value = yerDeger.ust; $('#yerVideoAyar').value = yerDeger.videoX; $('#yerOyunAyar').value = yerDeger.oyunX; $('#yerKirpAyar').value = yerDeger.videoKirp; }
   $('#yerUstYazi').textContent = Math.round(yerDeger.ust * 100) + '%';
   $('#yerOyunYazi').textContent = yerDeger.oyunX === 0 ? 'orta' : (yerDeger.oyunX < 0 ? 'sol ' : 'sağ ') + Math.round(Math.abs(yerDeger.oyunX) * 100) + '%';
+  $('#yerKirpYazi').textContent = yerDeger.videoKirp ? '%' + Math.round(yerDeger.videoKirp * 100) + ' kesik' : 'yok';
   $('#yerVideoYazi').textContent = yerDeger.videoX === 0 ? 'orta' : (yerDeger.videoX < 0 ? 'sol ' : 'sağ ') + Math.round(Math.abs(yerDeger.videoX) * 100) + '%';
 }
 function yerGonder(alan, v) {
-  const [lo, hi] = alan === 'ust' ? [0.6, 1.5] : [-1, 1];
+  const [lo, hi] = alan === 'ust' ? [0.6, 1.5] : alan === 'videoKirp' ? [0, 0.3] : [-1, 1];
   yerDeger[alan] = Math.round(Math.max(lo, Math.min(hi, v)) * 100) / 100;
   yerGoster({});
   yerBekleyen[alan] = yerDeger[alan];   // aynı anda değişen alanlar birlikte gönderilsin, biri kaybolmasın
   clearTimeout(yerZaman); yerZaman = setTimeout(() => { gonder({ tip: 'yer', ...yerBekleyen }); yerBekleyen = {}; }, 40);
 }
-for (const [id, alan] of [['#yerUstAyar', 'ust'], ['#yerVideoAyar', 'videoX'], ['#yerOyunAyar', 'oyunX']]) {
+for (const [id, alan] of [['#yerUstAyar', 'ust'], ['#yerVideoAyar', 'videoX'], ['#yerOyunAyar', 'oyunX'], ['#yerKirpAyar', 'videoKirp']]) {
   const el = $(id);
   el.addEventListener('input', () => { yerSurukle = true; yerGonder(alan, Number(el.value)); });
   el.addEventListener('change', () => { yerSurukle = false; yerGoster({}); });
@@ -204,7 +206,7 @@ for (const [id, alan] of [['#yerUstAyar', 'ust'], ['#yerVideoAyar', 'videoX'], [
 document.querySelectorAll('[data-yer]').forEach(b => b.addEventListener('click', () => {
   const alan = b.dataset.yer; yerGonder(alan, yerDeger[alan] + Number(b.dataset.adim));
 }));
-$('#yerSifirla').addEventListener('click', () => { yerGonder('ust', 1); yerGonder('videoX', 0); yerGonder('oyunX', 0); });
+$('#yerSifirla').addEventListener('click', () => { yerGonder('ust', 1); yerGonder('videoX', 0); yerGonder('oyunX', 0); yerGonder('videoKirp', 0); });
 // önizlemede fareyle / parmakla sürükleme
 (function () {
   const kutu = $('#yerOnizleme');

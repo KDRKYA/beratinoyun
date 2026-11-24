@@ -63,7 +63,7 @@ function yayinla(mesaj, hedef) {
 const SES_VARSAYILAN = { tik: 1.4, muzik: 0.5 };
 function sesAyar() { return { ...SES_VARSAYILAN, ...(durum.ses || {}) }; }
 // Yerleşim (panelden sürükleyerek): ust = üstteki oyunun ölçeği (1 = normal), videoX = alt videonun yatay kaydırması (-1 sol ... 1 sağ)
-const YER_VARSAYILAN = { ust: 1, videoX: 0, oyunX: 0 };   // oyunX = üstteki oyunun yatay kaydırması (-1 sol ... 1 sağ)
+const YER_VARSAYILAN = { ust: 1, videoX: 0, oyunX: 0, videoKirp: 0 };   // videoKirp = videonun üstünden kesilen pay (0-0.3), üstteki yazıları gizlemek için   // oyunX = üstteki oyunun yatay kaydırması (-1 sol ... 1 sağ)
 function yerAyar() { return { ...YER_VARSAYILAN, ...(durum.yer || {}) }; }
 function durumOzet() {
   return { tip: 'durum', seritler: durum.seritler, kullanici: durum.kullanici, baglanti: baglantiDurum, sonHediyeler, ses: sesAyar(), yer: yerAyar() };
@@ -197,6 +197,7 @@ function komut(m) {
       const y = yerAyar();
       if (m.ust !== undefined && Number.isFinite(Number(m.ust))) y.ust = Math.max(0.6, Math.min(1.5, Number(m.ust)));
       if (m.videoX !== undefined && Number.isFinite(Number(m.videoX))) y.videoX = Math.max(-1, Math.min(1, Number(m.videoX)));
+      if (m.videoKirp !== undefined && Number.isFinite(Number(m.videoKirp))) y.videoKirp = Math.max(0, Math.min(0.3, Number(m.videoKirp)));
       if (m.oyunX !== undefined && Number.isFinite(Number(m.oyunX))) y.oyunX = Math.max(-1, Math.min(1, Number(m.oyunX)));
       durum.yer = y; kaydet();
       yayinla({ tip: 'yer', yer: y });
