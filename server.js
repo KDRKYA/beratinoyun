@@ -62,8 +62,11 @@ function yayinla(mesaj, hedef) {
 // Yayındaki ses seviyeleri (panelden ayarlanır): tik = vuruş sesi (1 = %100, 2 = %200), muzik = ülke müziği (0-1)
 const SES_VARSAYILAN = { tik: 1.4, muzik: 0.5 };
 function sesAyar() { return { ...SES_VARSAYILAN, ...(durum.ses || {}) }; }
+// Yerleşim (panelden sürükleyerek): ust = üstteki oyunun ölçeği (1 = normal), videoX = alt videonun yatay kaydırması (-1 sol ... 1 sağ)
+const YER_VARSAYILAN = { ust: 1, videoX: 0 };
+function yerAyar() { return { ...YER_VARSAYILAN, ...(durum.yer || {}) }; }
 function durumOzet() {
-  return { tip: 'durum', seritler: durum.seritler, kullanici: durum.kullanici, baglanti: baglantiDurum, sonHediyeler, ses: sesAyar() };
+  return { tip: 'durum', seritler: durum.seritler, kullanici: durum.kullanici, baglanti: baglantiDurum, sonHediyeler, ses: sesAyar(), yer: yerAyar() };
 }
 
 // ---------- Puan ----------
@@ -188,6 +191,14 @@ function komut(m) {
       if (m.muzik !== undefined && Number.isFinite(Number(m.muzik))) s.muzik = Math.max(0, Math.min(1, Number(m.muzik)));
       durum.ses = s; kaydet();
       yayinla({ tip: 'ses', ses: s });
+      break;
+    }
+    case 'yer': {
+      const y = yerAyar();
+      if (m.ust !== undefined && Number.isFinite(Number(m.ust))) y.ust = Math.max(0.6, Math.min(1.5, Number(m.ust)));
+      if (m.videoX !== undefined && Number.isFinite(Number(m.videoX))) y.videoX = Math.max(-1, Math.min(1, Number(m.videoX)));
+      durum.yer = y; kaydet();
+      yayinla({ tip: 'yer', yer: y });
       break;
     }
     case 'puanAyarla': {

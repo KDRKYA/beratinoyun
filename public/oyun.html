@@ -353,11 +353,14 @@ function halkaCiz(x, y, w, h, t) {
 // ---------- Alt alan: oyun videosu (sessiz, döngü, alanı kırparak doldurur) ----------
 const altVideo = VIDEO_DOSYA ? Object.assign(document.createElement('video'), { src: VIDEO_DOSYA, muted: true, loop: true, playsInline: true, autoplay: true, preload: 'auto' }) : null;
 if (altVideo) { altVideo.setAttribute('playsinline', ''); altVideo.play().catch(() => {}); addEventListener('pointerdown', () => altVideo.paused && altVideo.play().catch(() => {})); }
+// Yerleşim (panelden ayarlanır): ust = üst sahnenin ölçeği, videoX = videonun yatay kaydırması (-1 sol, 0 orta, 1 sağ)
+const YER = { ust: 1, videoX: 0 };
 function altVideoCiz() {
   if (!altVideo || altVideo.readyState < 2 || !altVideo.videoWidth) return;
-  const y0 = DUVAR_ALT - 2, aw = W, ah = H - y0, vw = altVideo.videoWidth, vh = altVideo.videoHeight;
-  const o = Math.max(aw / vw, ah / vh), sw = aw / o, sh = ah / o;   // "cover": alanı doldur, taşanı ortadan kırp
-  cx.drawImage(altVideo, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, y0, aw, ah);
+  const y0 = Math.round(DUVAR_ALT * YER.ust) - 2, aw = W, ah = H - y0, vw = altVideo.videoWidth, vh = altVideo.videoHeight;
+  if (ah <= 0) return;
+  const o = Math.max(aw / vw, ah / vh), sw = aw / o, sh = ah / o;   // "cover": alanı doldur, taşanı kırp
+  cx.drawImage(altVideo, (vw - sw) * (YER.videoX + 1) / 2, (vh - sh) / 2, sw, sh, 0, y0, aw, ah);
 }
 // ---------- Canlılık efektleri: renkli şerit ışıkları, iz parçacıkları, vuruş patlaması, +1, lider tacı ----------
 const CANLI = true;                            // false = efektler kapalı (sade görünüm)
@@ -521,6 +524,9 @@ function kare(simdi) {
   const dt = Math.min(50, simdi - onceki); onceki = simdi;
   cx.clearRect(0, 0, W, H);
   altVideoCiz();
+  // üst sahne ölçeklenir: yukarıya yaslı, yatayda ortalı. Küçülünce yanlar koyu zeminle dolar
+  if (YER.ust < 1) { cx.fillStyle = '#07070c'; cx.fillRect(0, 0, W, Math.round(DUVAR_ALT * YER.ust)); }
+  cx.save(); cx.translate(W * (1 - YER.ust) / 2, 0); cx.scale(YER.ust, YER.ust);
   cx.drawImage(arka, 0, 0);
   odaIsiklari(simdi, dt);
   cx.save(); yuvarlak(cx, EKRAN.x, EKRAN.y, EKRAN.w, EKRAN.h, EKRAN.r); cx.clip();
@@ -603,6 +609,7 @@ function kare(simdi) {
   }
   cx.restore();
   cx.drawImage(cam, 0, 0);
+  cx.restore();
   requestAnimationFrame(kare);
 }
 
@@ -616,6 +623,7 @@ function soket() {
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.ses) sesAyarUygula(m.ses);   // panelden ses ayarı (durum ve 'ses' mesajlarında gelir)
+    if (m.yer) { if (Number.isFinite(m.yer.ust)) YER.ust = m.yer.ust; if (Number.isFinite(m.yer.videoX)) YER.videoX = m.yer.videoX; }
     if (m.tip === 'durum') {
       const ilk = !seritler.length;
       seritler = m.seritler.map(s => ({ ...s }));

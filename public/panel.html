@@ -49,6 +49,15 @@
   .ses-satir input[type=range]{width:100%;padding:0;accent-color:var(--mavi);height:28px}
   .ses-satir button{padding:8px 0;font-size:18px}
   .ses-satir b{text-align:right}
+  .yer-kutu{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
+  .yer-onizleme{position:relative;width:180px;height:320px;border-radius:10px;overflow:hidden;background:#000;border:1px solid #333;touch-action:none;user-select:none;flex:none}
+  .yer-ust{position:absolute;top:0;left:0;right:0;background:#07070c;display:flex;justify-content:center}
+  .yer-tv{height:100%;background:linear-gradient(180deg,#3a4a6b,#1b2440);border-bottom:2px solid #6b7aa0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#cfe;letter-spacing:1px}
+  .yer-alt{position:absolute;left:0;right:0;bottom:0;overflow:hidden;cursor:ew-resize;background:#111}
+  .yer-video{position:absolute;top:0;bottom:0;width:170%;background:repeating-linear-gradient(90deg,#2a6b3a 0 18px,#24593a 18px 36px);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#dfd}
+  .yer-cizgi{position:absolute;left:0;right:0;height:16px;margin-top:-8px;cursor:ns-resize;display:flex;align-items:center}
+  .yer-cizgi::before{content:'';flex:1;height:4px;background:#ffd23f;box-shadow:0 0 8px #ffd23f}
+  .yer-ayarlar{flex:1;min-width:240px}
   @media (max-width:600px){.ses-satir{grid-template-columns:86px 40px 1fr 40px 50px;gap:6px;font-size:14px}}
   .arti:active{transform:scale(.94);filter:brightness(1.25)}
   .arti-cok{background:#1f8a55;font-size:16px;padding:10px 12px}
@@ -84,6 +93,22 @@
       <div class="ses-satir"><span>🔊 Vuruş (tık)</span><button class="kucuk" data-ses="tik" data-adim="-0.1">−</button><input type="range" id="sesTik" min="0" max="2.5" step="0.05"><button class="kucuk" data-ses="tik" data-adim="0.1">+</button><b id="sesTikYazi">–</b></div>
       <div class="ses-satir"><span>🎵 Müzik</span><button class="kucuk" data-ses="muzik" data-adim="-0.05">−</button><input type="range" id="sesMuzik" min="0" max="1" step="0.01"><button class="kucuk" data-ses="muzik" data-adim="0.05">+</button><b id="sesMuzikYazi">–</b></div>
       <div class="ipucu">Sadece yayındaki oyun sayfasının sesini değiştirir, anında uygulanır ve kaydedilir. Panelde ses çalmaz.</div>
+    </div>
+    <div class="kart" style="margin-bottom:16px">
+      <h2>Yerleşim (oyun ve alt video)</h2>
+      <div class="yer-kutu">
+        <div class="yer-onizleme" id="yerOnizleme">
+          <div class="yer-ust" id="yerUst"><div class="yer-tv" id="yerTv">OYUN</div></div>
+          <div class="yer-alt" id="yerAlt"><div class="yer-video" id="yerVideo">◀ VİDEO ▶</div></div>
+          <div class="yer-cizgi" id="yerCizgi" title="Yukarı/aşağı sürükle"></div>
+        </div>
+        <div class="yer-ayarlar">
+          <div class="ses-satir"><span>📺 Oyun boyu</span><button class="kucuk" data-yer="ust" data-adim="-0.02">−</button><input type="range" id="yerUstAyar" min="0.6" max="1.5" step="0.01"><button class="kucuk" data-yer="ust" data-adim="0.02">+</button><b id="yerUstYazi">–</b></div>
+          <div class="ses-satir"><span>🎬 Video ◀▶</span><button class="kucuk" data-yer="videoX" data-adim="-0.05">−</button><input type="range" id="yerVideoAyar" min="-1" max="1" step="0.01"><button class="kucuk" data-yer="videoX" data-adim="0.05">+</button><b id="yerVideoYazi">–</b></div>
+          <button id="yerSifirla" class="kucuk" style="margin-top:4px">Varsayılana dön</button>
+          <div class="ipucu" style="margin-top:8px">Soldaki önizlemede <b>sarı çizgiyi</b> yukarı/aşağı sürükle: üstteki oyun küçülür/büyür, alttaki video o kadar uzar/kısalır. <b>Yeşil video alanını</b> sağa/sola sürükle: videonun görünen kısmı kayar. Yayındaki oyuna anında uygulanır ve kaydedilir.</div>
+        </div>
+      </div>
     </div>
     <div class="kart">
       <h2>Şeritler (sıralama canlı)</h2>
@@ -145,6 +170,54 @@ document.querySelectorAll('[data-ses]').forEach(b => b.addEventListener('click',
   const alan = b.dataset.ses; sesGonder(alan, sesDeger[alan] + Number(b.dataset.adim));
   $(alan === 'tik' ? '#sesTik' : '#sesMuzik').value = sesDeger[alan];
 }));
+// ---- Yerleşim (üst oyunun ölçeği, alt videonun yatay kaydırması) ----
+const SAHNE_ORAN = 896 / 1920;   // üst sahnenin tuvaldeki yüksekliği (ölçek 1'de)
+let yerDeger = { ust: 1, videoX: 0 }, yerSurukle = false, yerZaman = null, yerBekleyen = {};
+function yerGoster(y) {
+  yerDeger = { ...yerDeger, ...y };
+  const kutuH = $('#yerOnizleme').clientHeight || 320;
+  const ustH = kutuH * SAHNE_ORAN * yerDeger.ust;
+  $('#yerUst').style.height = ustH + 'px';
+  $('#yerTv').style.width = (yerDeger.ust * 100) + '%';
+  $('#yerAlt').style.top = (ustH - 1) + 'px';
+  $('#yerCizgi').style.top = ustH + 'px';
+  $('#yerVideo').style.left = (-(yerDeger.videoX + 1) / 2 * 70) + '%';   // video alanın %170'i: kaydırma payı %70
+  if (!yerSurukle) { $('#yerUstAyar').value = yerDeger.ust; $('#yerVideoAyar').value = yerDeger.videoX; }
+  $('#yerUstYazi').textContent = Math.round(yerDeger.ust * 100) + '%';
+  $('#yerVideoYazi').textContent = yerDeger.videoX === 0 ? 'orta' : (yerDeger.videoX < 0 ? 'sol ' : 'sağ ') + Math.round(Math.abs(yerDeger.videoX) * 100) + '%';
+}
+function yerGonder(alan, v) {
+  const [lo, hi] = alan === 'ust' ? [0.6, 1.5] : [-1, 1];
+  yerDeger[alan] = Math.round(Math.max(lo, Math.min(hi, v)) * 100) / 100;
+  yerGoster({});
+  yerBekleyen[alan] = yerDeger[alan];   // aynı anda değişen alanlar birlikte gönderilsin, biri kaybolmasın
+  clearTimeout(yerZaman); yerZaman = setTimeout(() => { gonder({ tip: 'yer', ...yerBekleyen }); yerBekleyen = {}; }, 40);
+}
+for (const [id, alan] of [['#yerUstAyar', 'ust'], ['#yerVideoAyar', 'videoX']]) {
+  const el = $(id);
+  el.addEventListener('input', () => { yerSurukle = true; yerGonder(alan, Number(el.value)); });
+  el.addEventListener('change', () => { yerSurukle = false; yerGoster({}); });
+}
+document.querySelectorAll('[data-yer]').forEach(b => b.addEventListener('click', () => {
+  const alan = b.dataset.yer; yerGonder(alan, yerDeger[alan] + Number(b.dataset.adim));
+}));
+$('#yerSifirla').addEventListener('click', () => { yerGonder('ust', 1); yerGonder('videoX', 0); });
+// önizlemede fareyle / parmakla sürükleme
+(function () {
+  const kutu = $('#yerOnizleme');
+  let mod = null, basX = 0, basV = 0;
+  $('#yerCizgi').addEventListener('pointerdown', e => { mod = 'ust'; kutu.setPointerCapture(e.pointerId); e.preventDefault(); });
+  $('#yerAlt').addEventListener('pointerdown', e => { mod = 'video'; basX = e.clientX; basV = yerDeger.videoX; kutu.setPointerCapture(e.pointerId); e.preventDefault(); });
+  kutu.addEventListener('pointermove', e => {
+    if (!mod) return;
+    const r = kutu.getBoundingClientRect();
+    if (mod === 'ust') yerGonder('ust', (e.clientY - r.top) / r.height / SAHNE_ORAN);
+    else yerGonder('videoX', basV - (e.clientX - basX) / (r.width * 0.35));   // videoyu sağa çekmek = soldaki kısmı göstermek
+  });
+  const bitir = () => { mod = null; };
+  kutu.addEventListener('pointerup', bitir); kutu.addEventListener('pointercancel', bitir);
+})();
+yerGoster({});
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const seritAd = id => { const s = durum.seritler.find(x => x.id === id); return s ? s.ad + ' (' + s.hediye + ')' : id; };
 
@@ -229,6 +302,7 @@ function soket() {
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.ses) sesGoster(m.ses);
+    if (m.yer) yerGoster(m.yer);
     if (m.tip === 'durum') { durum = m; ciz(); }
     else if (m.tip === 'log') $('#log').insertAdjacentHTML('afterbegin', logSatir(m.kayit));
   };
