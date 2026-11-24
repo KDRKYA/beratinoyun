@@ -160,14 +160,17 @@ function muzikSeviyeAyarla(v) {   // panelden gelen müzik sesi: çalan şarkıy
   MUZIK_SEVIYE = Math.max(0, Math.min(1, v));
   if (oynatici && ses) { const t = ses.currentTime; oynatici.g.gain.cancelScheduledValues(t); oynatici.g.gain.setValueAtTime(oynatici.g.gain.value, t); oynatici.g.gain.linearRampToValueAtTime(MUZIK_SEVIYE, t + 0.2); }
 }
+// Birinci, sunucudaki ASIL puana göre belirlenir. Ekrandaki sayaç uçan avatarlar hayvana değdikçe artar;
+// sayfa arka planda/gizliyken avatarlar uçmaz, sayaç geride kalır ve eskiden yanlış ülkenin şarkısı çalıyordu.
+const asilPuan = s => (s.gercek ?? s.puan);
 function muzikKontrol() {
   if (MUZIK_SESSIZ) return;
   if (typeof seritler === 'undefined' || !seritler.length) return;
-  const sirali = [...seritler].sort((a, b) => b.puan - a.puan), lider = sirali[0];
-  if (!lider || lider.puan <= 0) return;                                       // kimsenin puanı yok
+  const sirali = [...seritler].sort((a, b) => asilPuan(b) - asilPuan(a)), lider = sirali[0];
+  if (!lider || asilPuan(lider) <= 0) return;                                       // kimsenin puanı yok
   // berabere: çalan ülke de birincilerden biriyse o devam etsin. Değilse (ör. iki ülke birden öne geçti)
   // eski ülkenin şarkısı çalmaya devam ETMESİN: birincilerden birininki başlasın.
-  const birinciler = sirali.filter(s => s.puan === lider.puan);
+  const birinciler = sirali.filter(s => asilPuan(s) === asilPuan(lider));
   if (birinciler.length > 1) {
     if (birinciler.some(s => s.id === calanSerit)) { if (!oynatici && muzikTampon.size) muzikCal(calanSerit); return; }
     return muzikCal(birinciler[0].id);
@@ -185,8 +188,8 @@ function muzikDurumGonder() {
     const hepsi = (muzikListe[id] || []).filter(x => !x.mars);
     ulkeler[id] = hepsi.map(x => ({ ad: dosyaAdi(x.yol), hazir: muzikTampon.has(x.yol), bozuk: bozuk.get(x.yol) || null }));
   }
-  const sirali = typeof seritler !== 'undefined' ? [...seritler].sort((a, b) => b.puan - a.puan) : [];
-  const lider = sirali[0] && sirali[0].puan > 0 ? sirali.filter(x => x.puan === sirali[0].puan).map(x => x.id) : [];
+  const sirali = typeof seritler !== 'undefined' ? [...seritler].sort((a, b) => asilPuan(b) - asilPuan(a)) : [];
+  const lider = sirali[0] && asilPuan(sirali[0]) > 0 ? sirali.filter(x => asilPuan(x) === asilPuan(sirali[0])).map(x => x.id) : [];
   ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 3, kimlik: OYUN_KIMLIK, sessiz: MUZIK_SESSIZ, obs: /OBS/i.test(navigator.userAgent) || !!window.obsstudio, lider, ulkeler, calan: oynatici ? { id: oynatici.id, ad: dosyaAdi(oynatici.yol) } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
 }
 setInterval(muzikDurumGonder, 3000);

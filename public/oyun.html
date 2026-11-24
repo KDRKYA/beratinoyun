@@ -350,7 +350,7 @@ function hediyeGeldi(m) {
   const g = gorsel[m.serit]; if (!g) return;
   const adet = Math.max(0, Math.min(m.miktar, AVATAR_EN_FAZLA));
   bekleyen[m.serit] = (bekleyen[m.serit] || 0) + adet;
-  const s = seritler.find(x => x.id === m.serit); if (s) s.puan = Math.max(0, m.puan - bekleyen[m.serit]);
+  const s = seritler.find(x => x.id === m.serit); if (s) { s.puan = Math.max(0, m.puan - bekleyen[m.serit]); s.gercek = m.puan; }   // gercek: sunucudaki asıl puan (müzik bunu izler)
   hedefleriHesapla();
   const simdi = performance.now();
   // sıradaki avatarlar, bu şeritte hâlâ uçanların arkasından gelsin (üst üste binmesin)
@@ -805,7 +805,7 @@ function soket() {
     }
     if (m.tip === 'durum') {
       const ilk = !seritler.length;
-      seritler = m.seritler.map(s => ({ ...s }));
+      seritler = m.seritler.map(s => ({ ...s, gercek: s.puan }));   // gercek: sunucudaki asıl puan (ekrandaki sayaç avatarlar değdikçe yetişir)
       // henüz hayvana ulaşmamış avatarların puanı, değdikçe eklenecek
       for (const s of seritler) {
         const b = bekleyen[s.id] || 0;
