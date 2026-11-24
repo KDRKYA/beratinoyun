@@ -63,7 +63,10 @@ function yayinla(mesaj, hedef) {
 const SES_VARSAYILAN = { tik: 1.4, muzik: 0.5, gecikme: 0 };   // gecikme: tık sesinin kayması (ms, + = ses daha geç)
 function sesAyar() { return { ...SES_VARSAYILAN, ...(durum.ses || {}) }; }
 // Yerleşim (panelden sürükleyerek): ust = üstteki oyunun ölçeği (1 = normal), videoX = alt videonun yatay kaydırması (-1 sol ... 1 sağ)
-const YER_VARSAYILAN = { ust: 1, videoX: 0, oyunX: 0, videoKirp: 0 };   // videoKirp = videonun üstünden kesilen pay (0-0.3), üstteki yazıları gizlemek için   // oyunX = üstteki oyunun yatay kaydırması (-1 sol ... 1 sağ)
+// Yerleşim: ust = üstteki oyunun ölçeği, oyunX/videoX = yatay kaydırma (-1 sol ... 1 sağ),
+// oyunSol/oyunSag = üstteki oyunun kenarlarından kesilen pay, videoKirp/videoAlt/videoSol/videoSag = videonun üst/alt/sol/sağ kesme payı
+const YER_SINIR = { ust: [0.6, 1.5], videoX: [-1, 1], oyunX: [-1, 1], oyunSol: [0, 0.4], oyunSag: [0, 0.4], videoKirp: [0, 0.4], videoAlt: [0, 0.4], videoSol: [0, 0.4], videoSag: [0, 0.4] };
+const YER_VARSAYILAN = { ust: 1, videoX: 0, oyunX: 0, oyunSol: 0, oyunSag: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 };
 function yerAyar() { return { ...YER_VARSAYILAN, ...(durum.yer || {}) }; }
 function durumOzet() {
   return { tip: 'durum', seritler: durum.seritler, kullanici: durum.kullanici, baglanti: baglantiDurum, sonHediyeler, ses: sesAyar(), yer: yerAyar() };
@@ -196,10 +199,8 @@ function komut(m) {
     }
     case 'yer': {
       const y = yerAyar();
-      if (m.ust !== undefined && Number.isFinite(Number(m.ust))) y.ust = Math.max(0.6, Math.min(1.5, Number(m.ust)));
-      if (m.videoX !== undefined && Number.isFinite(Number(m.videoX))) y.videoX = Math.max(-1, Math.min(1, Number(m.videoX)));
-      if (m.videoKirp !== undefined && Number.isFinite(Number(m.videoKirp))) y.videoKirp = Math.max(0, Math.min(0.3, Number(m.videoKirp)));
-      if (m.oyunX !== undefined && Number.isFinite(Number(m.oyunX))) y.oyunX = Math.max(-1, Math.min(1, Number(m.oyunX)));
+      for (const [k, [lo, hi]] of Object.entries(YER_SINIR))
+        if (m[k] !== undefined && Number.isFinite(Number(m[k]))) y[k] = Math.max(lo, Math.min(hi, Number(m[k])));
       durum.yer = y; kaydet();
       yayinla({ tip: 'yer', yer: y });
       break;
