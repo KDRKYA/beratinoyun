@@ -32,6 +32,11 @@ async function muzikListeYukle() {
   for (const id of Object.keys(muzikListe)) { const l = muzikParcalar(id); if (l.length) yukle(l[(sira[id] || 0) % l.length].yol, id); }
 }
 muzikListeYukle(); setInterval(muzikListeYukle, 30000);
+// panelden şarkı kaldırılınca hemen listeyi yenile; kaldırılan şarkı çalıyorsa sıradakine geç
+async function muzikHemenYenile() {
+  await muzikListeYukle();
+  if (oynatici && !(muzikListe[oynatici.id] || []).some(x => x.yol === oynatici.yol)) { muzikTampon.delete(oynatici.yol); muzikCal(oynatici.id, SARKI_GECIS); }
+}
 
 // ayar.json'da bu şarkı için elle yazılmış bas/son var mı?
 function elleAyar(id, ad) {
@@ -156,7 +161,13 @@ function muzikKontrol() {
   if (typeof seritler === 'undefined' || !seritler.length) return;
   const sirali = [...seritler].sort((a, b) => b.puan - a.puan), lider = sirali[0];
   if (!lider || lider.puan <= 0) return;                                       // kimsenin puanı yok
-  if (sirali[1] && sirali[1].puan === lider.puan && calanSerit) return;         // berabere: çalan devam etsin
+  // berabere: çalan ülke de birincilerden biriyse o devam etsin. Değilse (ör. iki ülke birden öne geçti)
+  // eski ülkenin şarkısı çalmaya devam ETMESİN: birincilerden birininki başlasın.
+  const birinciler = sirali.filter(s => s.puan === lider.puan);
+  if (birinciler.length > 1) {
+    if (birinciler.some(s => s.id === calanSerit)) { if (!oynatici && muzikTampon.size) muzikCal(calanSerit); return; }
+    return muzikCal(birinciler[0].id);
+  }
   if (lider.id !== calanSerit) muzikCal(lider.id);                              // yeni birinci: hemen kendi şarkısı
   else if (!oynatici && muzikTampon.size) muzikCal(lider.id);                   // hiç çalmıyorsa başlat
 }

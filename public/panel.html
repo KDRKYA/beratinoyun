@@ -54,6 +54,8 @@
   .mz-sarki{font-size:12px;padding:2px 7px;border-radius:999px;background:#2a2f3a;white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis}
   .mz-sarki.hazir{background:#1f4d33}
   .mz-sarki.bozuk{background:#5c1f24;text-decoration:line-through}
+  .mz-kaldir{border:0;background:none;color:#ffb3b3;cursor:pointer;padding:0 0 0 4px;font-size:12px;line-height:1}
+  .mz-kaldir:hover{color:#fff}
   .mz-sarki.calan{background:#2b6cff;color:#fff;font-weight:700}
   .yer-kutu{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap}
   .yer-onizleme{position:relative;width:180px;height:320px;border-radius:10px;overflow:hidden;background:#000;border:1px solid #333;touch-action:none;user-select:none;flex:none}
@@ -148,7 +150,7 @@
       <h2>Müzik durumu</h2>
       <div id="muzikCalan" class="ipucu" style="margin-bottom:8px">Oyun sayfasından bilgi bekleniyor…</div>
       <div id="muzikUlkeler"></div>
-      <div class="ipucu" style="margin-top:6px">✓ hazır · ⏳ sırada (çalmadan önce yüklenir) · ✗ çalınamıyor (atlanır) · ▶ şu an çalan. Her şarkının en hareketli ~40 sn'si çalar, sonra sıradakine geçer.</div>
+      <div class="ipucu" style="margin-top:6px">✓ hazır · ⏳ sırada (çalmadan önce yüklenir) · ✗ çalınamıyor (atlanır) · ▶ şu an çalan. Bir şarkı yanlış ülkedeyse ya da beğenmediysen yanındaki <b>✕</b> ile kaldır (silinmez, <i>eski</i> klasörüne taşınır). Her şarkının en hareketli ~40 sn'si çalar, sonra sıradakine geçer.</div>
     </div>
     <div class="kart">
       <h2>Oyun</h2>
@@ -290,7 +292,8 @@ function muzikGoster(m) {
     + (l.length ? l.map(x => {
         const calan = m.calan && m.calan.id === id && m.calan.ad === x.ad;
         const sinif = calan ? 'calan' : x.bozuk ? 'bozuk' : x.hazir ? 'hazir' : '';
-        return '<span class="mz-sarki ' + sinif + '" title="' + esc(x.ad + (x.bozuk ? ' – ' + x.bozuk : '')) + '">' + (calan ? '▶ ' : x.bozuk ? '✗ ' : x.hazir ? '✓ ' : '⏳ ') + esc(x.ad.replace(/\.[^.]+$/, '')) + '</span>';
+        return '<span class="mz-sarki ' + sinif + '" title="' + esc(x.ad + (x.bozuk ? ' – ' + x.bozuk : '')) + '">' + (calan ? '▶ ' : x.bozuk ? '✗ ' : x.hazir ? '✓ ' : '⏳ ') + esc(x.ad.replace(/\.[^.]+$/, ''))
+          + ' <button class="mz-kaldir" data-kaldir-serit="' + esc(id) + '" data-kaldir-ad="' + esc(x.ad) + '" title="Bu şarkıyı bu ülkeden kaldır">✕</button></span>';
       }).join('') : '<span class="mz-sarki bozuk">klasörde şarkı yok</span>') + '</div>').join('');
 }
 setInterval(() => { if (Date.now() - muzikSon > 10000) $('#muzikCalan').innerHTML = '<span style="color:#ffb86b">Oyun sayfasından müzik bilgisi gelmiyor. OBS\'te oyun kaynağına sağ tık → Yenile. Yine gelmiyorsa müzik dosyası (muzik.js) eski sürümde kalmış demektir.</span>'; }, 5000);
@@ -388,6 +391,11 @@ function soket() {
 
 document.addEventListener('click', e => {
   const t = e.target;
+  if (t.dataset.kaldirAd) {
+    if (confirm('"' + t.dataset.kaldirAd + '" şarkısı ' + (ULKE_AD[t.dataset.kaldirSerit] || t.dataset.kaldirSerit) + ' listesinden kaldırılsın mı?\n(Silinmez, o ülkenin "eski" klasörüne taşınır.)'))
+      gonder({ tip: 'sarkiKaldir', serit: t.dataset.kaldirSerit, ad: t.dataset.kaldirAd });
+    return;
+  }
   if (t.dataset.arti) gonder({ tip: 'arti', serit: t.dataset.arti, miktar: Number(t.dataset.miktar) || 1 });
   if (t.dataset.sifirla && confirm(seritAd(t.dataset.sifirla) + ' sıfırlansın mı?')) gonder({ tip: 'sifirla', serit: t.dataset.sifirla });
   if (t.dataset.ayarla) { const v = document.querySelector(`[data-ayar="${t.dataset.ayarla}"]`).value; if (v !== '') gonder({ tip: 'puanAyarla', serit: t.dataset.ayarla, puan: Number(v) }); }

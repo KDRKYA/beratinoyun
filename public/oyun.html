@@ -816,6 +816,7 @@ function soket() {
       if (ilk) for (const g of Object.values(gorsel)) if (g.hedefX !== undefined) { g.x = g.hedefX; g.sira = g.hedefSira; }
     }
     else if (m.tip === 'hediye') { hediyeGeldi(m); teshis('hediye'); }
+    else if (m.tip === 'muzikYenile' && typeof muzikHemenYenile === 'function') muzikHemenYenile();   // panelden şarkı kaldırıldı
   };
   ws.onclose = () => setTimeout(soket, 1500);
 }

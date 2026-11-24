@@ -211,6 +211,18 @@ function komut(m) {
       if (s && Number.isFinite(p)) { s.puan = p; kaydet(); logYaz({ olay: 'puanAyarla', serit: s.id, puan: p }); yayinla(durumOzet()); }
       break;
     }
+    case 'sarkiKaldir': {   // yanlış ülkede / istenmeyen şarkıyı o ülkenin "eski" klasörüne taşı (silinmez)
+      const serit = durum.seritler.find(x => x.id === m.serit);
+      const ad = String(m.ad || '');
+      if (!serit || !ad || ad !== path.basename(ad) || ad.startsWith('.')) break;
+      const klasor = path.join(PUBLIC, 'muzik', serit.id), kaynak = path.join(klasor, ad);
+      if (!fs.existsSync(kaynak)) break;
+      fs.mkdirSync(path.join(klasor, 'eski'), { recursive: true });
+      try { fs.renameSync(kaynak, path.join(klasor, 'eski', ad)); } catch (e) { console.error('şarkı taşınamadı', e); break; }
+      logYaz({ olay: 'sarkiKaldir', serit: serit.id, ad });
+      yayinla({ tip: 'muzikYenile' }, 'oyun');
+      break;
+    }
     case 'esle': {
       const giftId = Number(m.giftId);
       for (const s of durum.seritler) s.giftIds = s.giftIds.filter(g => g !== giftId);
