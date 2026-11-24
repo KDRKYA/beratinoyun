@@ -44,7 +44,8 @@ const TV_STIL = 'oda';
 const SAHNELER = {   // tam genişlik oda fotoğrafları: araclar/oda_tv_hazirla.py, araclar/genis_tv_hazirla.py
   oda:   { dosya: 'tv/oda-tv.jpg',   w: 1080, h: 896, ekran: { x: 50, y: 185, w: 980, h: 551, r: 3 },
            lamba: { x1: 673, y1: 134, x2: 700, y2: 183 },   // TV'nin arkasındaki lambader ışık çubuğu
-           jbl: { x: 541, y: 789 } },                        // JBL'in üstündeki küçük ışık
+           jbl: { x: 541, y: 789 },                          // JBL'in üstündeki küçük ışık
+           yansima: { x: 682, y: 758, rx: 95, ry: 30 } },    // lambanın TV altındaki süpürgelik/zemine düşen pembe yansıması (fotoğrafta)
   genis: { dosya: 'tv/genis-tv.jpg', w: 1080, h: 748, ekran: { x: 18, y: 67, w: 1035, h: 582, r: 4 } },
 };
 const SAHNE = SAHNELER[TV_STIL] || null;
@@ -515,6 +516,26 @@ function odaIsiklari(simdi, dt) {
     cx.fillStyle = gy; cx.fillRect(mx - CAKAR_DUVAR, my + 10 - CAKAR_DUVAR, CAKAR_DUVAR * 2, CAKAR_DUVAR * 2);
   }
   cx.restore();
+  // TV'nin altındaki yansıma: fotoğraftaki pembe ışık lambayla AYNI renkte ve AYNI anda yanıp söner
+  const ym = yansimaMaske();
+  if (ym) {
+    const tc = ym.renkli.getContext('2d');
+    cx.save();
+    tc.globalCompositeOperation = 'source-over'; tc.clearRect(0, 0, ym.w, ym.h);
+    tc.fillStyle = `rgb(${r},${g},${b})`; tc.fillRect(0, 0, ym.w, ym.h);
+    tc.globalCompositeOperation = 'destination-in'; tc.drawImage(ym.maske, 0, 0);
+    cx.globalCompositeOperation = 'color'; cx.drawImage(ym.renkli, ym.x, ym.y);
+    // çakınca hafifçe parlasın (screen), sönükken kararsın (multiply) — lambadaki gibi
+    cx.globalCompositeOperation = 'screen'; cx.globalAlpha = .14 * isik; cx.drawImage(ym.renkli, ym.x, ym.y); cx.globalAlpha = 1;
+    if (isik < 1) {
+      const gri = Math.round(255 * (.35 + .65 * isik));
+      tc.globalCompositeOperation = 'source-over'; tc.clearRect(0, 0, ym.w, ym.h);
+      tc.fillStyle = `rgb(${gri},${gri},${gri})`; tc.fillRect(0, 0, ym.w, ym.h);
+      tc.globalCompositeOperation = 'destination-in'; tc.drawImage(ym.maske, 0, 0);
+      cx.globalCompositeOperation = 'multiply'; cx.drawImage(ym.renkli, ym.x, ym.y);
+    }
+    cx.restore();
+  }
   // ekranın üst çerçevesine taşan ışık olmasın: ekranın kendisi zaten oyunla çizilecek
   // JBL ışığı: gerçek hoparlör gibi yavaşça söner-yanar (sert yanıp sönme yok)
   if (SAHNE.jbl) {
@@ -532,6 +553,29 @@ function odaIsiklari(simdi, dt) {
   }
 }
 // Lambanın fotoğraftaki ışığından maske (bir kez): parlak çubuk ve duvardaki halesi; koyu direk ve duvar hariç
+// TV altındaki yansımanın maskesi (bir kez): fotoğrafta pembe/ılık parlayan yerler, elips içinde yumuşakça
+let _yansimaMaske = null;
+function yansimaMaske() {
+  if (_yansimaMaske !== null) return _yansimaMaske || null;
+  if (!SAHNE || !SAHNE.yansima) { _yansimaMaske = false; return null; }
+  if (!tvFoto || !tvFoto.complete || !tvFoto.naturalWidth) return null;
+  const Y = SAHNE.yansima, x = Math.round(Y.x - Y.rx), y = Math.round(Y.y - Y.ry), w = Math.round(Y.rx * 2), h = Math.round(Y.ry * 2);
+  const kaynak = document.createElement('canvas'); kaynak.width = w; kaynak.height = h;
+  const kc = kaynak.getContext('2d', { willReadFrequently: true });
+  kc.drawImage(tvFoto, x * tvFoto.naturalWidth / W, y * tvFoto.naturalHeight / SAHNE.h, w * tvFoto.naturalWidth / W, h * tvFoto.naturalHeight / SAHNE.h, 0, 0, w, h);
+  const id = kc.getImageData(0, 0, w, h), d = id.data;
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const k = (j * w + i) * 4, R = d[k], G = d[k + 1], B = d[k + 2];
+    const pembe = R - G * .7 - B * .3;                       // pembe ışık: kırmızı baskın, yeşil düşük (sarı halı çizgisi elenir)
+    let a = (pembe - 18) / 40; a = Math.max(0, Math.min(1, a)); a = a * a * (3 - 2 * a);
+    const ex = (i - w / 2) / (w / 2), ey = (j - h / 2) / (h / 2), e = Math.max(0, 1 - (ex * ex + ey * ey));
+    d[k] = d[k + 1] = d[k + 2] = 255; d[k + 3] = Math.round(a * e * e * 210);   // 210: renk tam boyanmasın, zeminin dokusu görünsün
+  }
+  kc.putImageData(id, 0, 0);
+  const renkli = document.createElement('canvas'); renkli.width = w; renkli.height = h;
+  _yansimaMaske = { x, y, w, h, maske: kaynak, renkli };
+  return _yansimaMaske;
+}
 let _lambaMaske = null;
 function lambaMaske() {
   if (_lambaMaske !== null) return _lambaMaske || null;
