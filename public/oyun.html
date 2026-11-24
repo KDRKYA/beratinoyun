@@ -355,7 +355,8 @@ function halkaCiz(x, y, w, h, t) {
 const altVideo = VIDEO_DOSYA ? Object.assign(document.createElement('video'), { src: VIDEO_DOSYA, muted: true, loop: true, playsInline: true, autoplay: true, preload: 'auto' }) : null;
 if (altVideo) { altVideo.setAttribute('playsinline', ''); altVideo.play().catch(() => {}); addEventListener('pointerdown', () => altVideo.paused && altVideo.play().catch(() => {})); }
 // Yerleşim (panelden ayarlanır): ust = üst sahnenin ölçeği, videoX = videonun yatay kaydırması (-1 sol, 0 orta, 1 sağ)
-const YER = { ust: 1, videoX: 0 };
+const YER = { ust: 1, videoX: 0, oyunX: 0 };   // oyunX: üstteki oyunun yatay kaydırması (-1 sol, 1 sağ; genişliğin %25'i kadar)
+const OYUN_KAYMA = 0.25;
 function altVideoCiz() {
   if (!altVideo || altVideo.readyState < 2 || !altVideo.videoWidth) return;
   const y0 = Math.round(DUVAR_ALT * YER.ust) - 2, aw = W, ah = H - y0, vw = altVideo.videoWidth, vh = altVideo.videoHeight;
@@ -603,8 +604,8 @@ function kare(simdi) {
   cx.clearRect(0, 0, W, H);
   altVideoCiz();
   // üst sahne ölçeklenir: yukarıya yaslı, yatayda ortalı. Küçülünce yanlar koyu zeminle dolar
-  if (YER.ust < 1) { cx.fillStyle = '#07070c'; cx.fillRect(0, 0, W, Math.round(DUVAR_ALT * YER.ust)); }
-  cx.save(); cx.translate(W * (1 - YER.ust) / 2, 0); cx.scale(YER.ust, YER.ust);
+  if (YER.ust < 1 || YER.oyunX) { cx.fillStyle = '#07070c'; cx.fillRect(0, 0, W, Math.round(DUVAR_ALT * YER.ust)); }
+  cx.save(); cx.translate(W * (1 - YER.ust) / 2 + YER.oyunX * W * OYUN_KAYMA, 0); cx.scale(YER.ust, YER.ust);
   cx.drawImage(arka, 0, 0);
   odaIsiklari(simdi, dt);
   cx.save(); yuvarlak(cx, EKRAN.x, EKRAN.y, EKRAN.w, EKRAN.h, EKRAN.r); cx.clip();
@@ -701,7 +702,7 @@ function soket() {
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.ses) sesAyarUygula(m.ses);   // panelden ses ayarı (durum ve 'ses' mesajlarında gelir)
-    if (m.yer) { if (Number.isFinite(m.yer.ust)) YER.ust = m.yer.ust; if (Number.isFinite(m.yer.videoX)) YER.videoX = m.yer.videoX; }
+    if (m.yer) { if (Number.isFinite(m.yer.ust)) YER.ust = m.yer.ust; if (Number.isFinite(m.yer.videoX)) YER.videoX = m.yer.videoX; if (Number.isFinite(m.yer.oyunX)) YER.oyunX = m.yer.oyunX; }
     if (m.tip === 'durum') {
       const ilk = !seritler.length;
       seritler = m.seritler.map(s => ({ ...s }));
