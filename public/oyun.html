@@ -180,9 +180,19 @@ const EKRAN_KONTRAST = 1.22;    // 1 = değişiklik yok. Büyüdükçe koyular k
 const EKRAN_DOYGUNLUK = 1.15;   // 1 = değişiklik yok. Büyüdükçe renkler canlanır
 const EKRAN_PARLAKLIK = 0.97;   // 1 = değişiklik yok
 const EKRAN_FILTRE = `contrast(${EKRAN_KONTRAST}) saturate(${EKRAN_DOYGUNLUK}) brightness(${EKRAN_PARLAKLIK})`;
-function filtreliKopya(kaynak, w, h) {   // görselin kontrastlı kopyası (bir kez)
-  const c = document.createElement('canvas'); c.width = w; c.height = h;
-  const k = c.getContext('2d'); k.filter = EKRAN_FILTRE; k.drawImage(kaynak, 0, 0); return c;
+function filtreliKopya(kaynak, w, h, parlak = 1, hedef = null) {   // görselin kontrastlı (ve istenirse parlaklığı ayarlı) kopyası
+  const c = hedef || document.createElement('canvas'); c.width = w; c.height = h;
+  const k = c.getContext('2d'); k.clearRect(0, 0, w, h); k.filter = EKRAN_FILTRE + (parlak !== 1 ? ` brightness(${parlak})` : ''); k.drawImage(kaynak, 0, 0); return c;
+}
+// Hayvan parlaklığı panelden değişince hayvan görselleri yeniden hazırlanır (her karede filtre çalışmasın diye)
+let _hayvanZaman = null;
+function hayvanlariYenile() {
+  clearTimeout(_hayvanZaman);
+  _hayvanZaman = setTimeout(() => {
+    for (const g of Object.values(gorsel)) if (g.img.complete && g.img.naturalWidth) {
+      try { g.kontrastli = filtreliKopya(g.img, g.img.naturalWidth, g.img.naturalHeight, YER.hayvanParlak, g.kontrastli); } catch {}
+    }
+  }, 250);
 }
 function arkaCiz() {
   const c = arka.getContext('2d');
@@ -299,7 +309,7 @@ async function spritelariYukle() {
   for (const id of Object.keys(spriteMeta)) {
     const im = new Image(); im.src = 'sprites/' + id + '.png';
     gorsel[id] = { img: im, meta: spriteMeta[id], x: BURUN_MIN, sira: 0, hedefSira: 0, atil: 0, buyu: 0, halka: 0, son: [] };
-    im.onload = () => { try { gorsel[id].kontrastli = filtreliKopya(im, im.naturalWidth, im.naturalHeight); } catch {} };   // kontrastlı kopya (bir kez)
+    im.onload = () => { try { gorsel[id].kontrastli = filtreliKopya(im, im.naturalWidth, im.naturalHeight, YER.hayvanParlak); } catch {} };   // kontrastlı kopya (bir kez)
   }
 }
 
@@ -401,7 +411,7 @@ function halkaCiz(x, y, w, h, t) {
 const altVideo = VIDEO_DOSYA ? Object.assign(document.createElement('video'), { src: VIDEO_DOSYA, muted: true, loop: true, playsInline: true, autoplay: true, preload: 'auto' }) : null;
 if (altVideo) { altVideo.setAttribute('playsinline', ''); altVideo.play().catch(() => {}); addEventListener('pointerdown', () => altVideo.paused && altVideo.play().catch(() => {})); }
 // Yerleşim (panelden ayarlanır): ust = üst sahnenin ölçeği, videoX = videonun yatay kaydırması (-1 sol, 0 orta, 1 sağ)
-const YER = { odaParlak: 1, ust: 1, videoX: 0, oyunX: 0, oyunY: 0, videoY: 0, videoZoom: 1, oyunSol: 0, oyunSag: 0, oyunUst: 0, oyunAlt: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 };
+const YER = { odaParlak: 1, hayvanParlak: 1, cizgiParlak: 1, haleParlak: 1, ust: 1, videoX: 0, oyunX: 0, oyunY: 0, videoY: 0, videoZoom: 1, oyunSol: 0, oyunSag: 0, oyunUst: 0, oyunAlt: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 };
 // oyunX: üstteki oyunun yatay kaydırması (-1 sol, 1 sağ; genişliğin %25'i kadar). oyunSol/oyunSag: üstteki oyunun yanlarından kesilen pay, yeri koyu kalır. oyunUst/oyunAlt: üstünden/altından kesilir, kalan kısım yukarı toplanır, video da o kadar yukarı uzar (0-0.4)
 // videoKirp/videoAlt/videoSol/videoSag: videonun GÖRÜNEN kısmının üst/alt/sol/sağından kesilen pay (0-0.4); kalan kısım alanı doldurur
 const OYUN_KAYMA = 0.25;
@@ -474,7 +484,7 @@ function canliArka(simdi, satirlar) {
   for (const { s, g, y } of satirlar) {
     const [r, gg, b] = renkRgb(RENK[s.id] || '#8fd0f5'), lider = g.hedefSira === 0 && s.puan > 0;
     const nabiz = .5 + .5 * Math.sin(t * 4 + g.sira);
-    const a = (lider ? .26 : .12) + nabiz * .05;
+    const a = Math.min(1, ((lider ? .26 : .12) + nabiz * .05) * YER.haleParlak);   // panelden 'Elips ışığı' ile ayarlanır
     const x1 = Math.min(EKRAN.x + EKRAN.w, g.x + 220);
     const gr = cx.createLinearGradient(EKRAN.x, 0, x1, 0), tepe = Math.max(.05, Math.min(.95, (g.x - EKRAN.x) / (x1 - EKRAN.x)));
     gr.addColorStop(0, `rgba(${r},${gg},${b},0)`); gr.addColorStop(tepe * .7, `rgba(${r},${gg},${b},${a * .5})`);
@@ -705,7 +715,7 @@ function kare(simdi) {
       // arkasındaki renkli hale (lider daha parlak, nabız gibi atar)
       const nab = .5 + .5 * Math.sin(simdi / 180 + g.sira);
       const ha = cx.createRadialGradient(ox, y, 0, ox, y, bw * .6);
-      ha.addColorStop(0, `rgba(${r},${gg},${bb},${(lider ? .42 : .22) + nab * .1})`); ha.addColorStop(1, `rgba(${r},${gg},${bb},0)`);
+      ha.addColorStop(0, `rgba(${r},${gg},${bb},${Math.min(1, ((lider ? .42 : .22) + nab * .1) * YER.haleParlak)})`); ha.addColorStop(1, `rgba(${r},${gg},${bb},0)`);
       cx.save(); cx.globalCompositeOperation = 'lighter'; cx.fillStyle = ha; cx.fillRect(ox - bw * .6, y - bw * .6, bw * 1.2, bw * 1.2); cx.restore();
       // ayak tozu / hız izi (arkasından renkli kıvılcımlar)
       if (Math.random() < dt / (lider ? 22 : 45)) parcaEkle(ox - bw * .42, y0 + bh * .3 * Math.random(), Math.random() < .3 ? '#fff' : renk, 1, 260, lider ? 5 : 3.5, 550, Math.PI, .6);
@@ -724,7 +734,8 @@ function kare(simdi) {
   if (CANLI) parcaCiz(dt);
   // çizgiler (renkleri yavaşça gökkuşağı gibi döner)
   const kayma = (simdi / 1000 * CIZGI_HIZ) % CIZGI_ADIM;
-  if (CANLI) cx.filter = `hue-rotate(${(simdi / 30) % 360}deg) saturate(1.4)`;
+  if (CANLI) cx.filter = `hue-rotate(${(simdi / 30) % 360}deg) saturate(1.4)` + (YER.cizgiParlak !== 1 ? ` brightness(${YER.cizgiParlak})` : '');
+  else if (YER.cizgiParlak !== 1) cx.filter = `brightness(${YER.cizgiParlak})`;
   for (let i = 1; i < 5; i++) cizgi(cx, EKRAN.y + SERIT_H * i, kayma);
   cizgi(cx, EKRAN.y + EKRAN.h - 3, kayma);
   cx.filter = 'none';
@@ -773,9 +784,10 @@ function soket() {
     const m = JSON.parse(e.data);
     if (m.ses) sesAyarUygula(m.ses);   // panelden ses ayarı (durum ve 'ses' mesajlarında gelir)
     if (m.yer) {   // panelden yerleşim
-      const eskiOda = YER.odaParlak;
+      const eskiOda = YER.odaParlak, eskiHayvan = YER.hayvanParlak;
       for (const k of Object.keys(YER)) if (Number.isFinite(m.yer[k])) YER[k] = m.yer[k];
       if (YER.odaParlak !== eskiOda) arkaCiz();   // oda parlaklığı arka plana bir kez işlenir
+      if (YER.hayvanParlak !== eskiHayvan) hayvanlariYenile();
     }
     if (m.tip === 'durum') {
       const ilk = !seritler.length;
