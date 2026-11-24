@@ -170,6 +170,16 @@ function gercekOdaCiz(c) {
   g.addColorStop(0, '#3a2312'); g.addColorStop(1, '#1e1108');
   c.fillStyle = g; c.fillRect(0, MASA_ON + 2, W, DUVAR_ALT - MASA_ON - 2);
 }
+// TV ekranındaki görüntüye kontrast/doygunluk: referans videodaki gibi siyahlar daha derin, renkler daha canlı.
+// Her karede değil, açılışta bir kez uygulanır (ekran arka planı + hayvan görselleri): performans kaybı yok
+const EKRAN_KONTRAST = 1.22;    // 1 = değişiklik yok. Büyüdükçe koyular koyulaşır, parlaklar parlar
+const EKRAN_DOYGUNLUK = 1.15;   // 1 = değişiklik yok. Büyüdükçe renkler canlanır
+const EKRAN_PARLAKLIK = 0.97;   // 1 = değişiklik yok
+const EKRAN_FILTRE = `contrast(${EKRAN_KONTRAST}) saturate(${EKRAN_DOYGUNLUK}) brightness(${EKRAN_PARLAKLIK})`;
+function filtreliKopya(kaynak, w, h) {   // görselin kontrastlı kopyası (bir kez)
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const k = c.getContext('2d'); k.filter = EKRAN_FILTRE; k.drawImage(kaynak, 0, 0); return c;
+}
 function arkaCiz() {
   const c = arka.getContext('2d');
   c.clearRect(0, 0, W, H);
@@ -237,6 +247,10 @@ function arkaCiz() {
   dag([[0,.7],[.12,.52],[.22,.62],[.35,.4],[.48,.58],[.6,.45],[.72,.6],[.85,.38],[1,.55]], '#2a3550', .35);
   dag([[0,.85],[.15,.72],[.3,.8],[.45,.66],[.62,.78],[.78,.68],[1,.8]], '#1c2640', .35);
   c.restore();
+  // ekran içine kontrast (bir kez)
+  { const x = Math.floor(EKRAN.x), y = Math.floor(EKRAN.y), w = Math.ceil(EKRAN.w), h = Math.ceil(EKRAN.h);
+    const t = document.createElement('canvas'); t.width = w; t.height = h; t.getContext('2d').drawImage(arka, x, y, w, h, 0, 0, w, h);
+    c.save(); yuvarlak(c, EKRAN.x, EKRAN.y, EKRAN.w, EKRAN.h, EKRAN.r); c.clip(); c.filter = EKRAN_FILTRE; c.clearRect(x, y, w, h); c.drawImage(t, x, y); c.restore(); }
   // tüp camı katmanı (her karede içeriğin üstüne çizilir)
   const k = cam.getContext('2d');
   k.clearRect(0, 0, W, H);
@@ -274,6 +288,7 @@ async function spritelariYukle() {
   for (const id of Object.keys(spriteMeta)) {
     const im = new Image(); im.src = 'sprites/' + id + '.png';
     gorsel[id] = { img: im, meta: spriteMeta[id], x: BURUN_MIN, sira: 0, hedefSira: 0, atil: 0, buyu: 0, halka: 0, son: [] };
+    im.onload = () => { try { gorsel[id].kontrastli = filtreliKopya(im, im.naturalWidth, im.naturalHeight); } catch {} };   // kontrastlı kopya (bir kez)
   }
 }
 
@@ -333,7 +348,14 @@ function avatarCiz(x, y, r, foto, alfa) {
   else { cx.fillStyle = '#cfd6de'; cx.fillRect(x - r, y - r, r * 2, r * 2); cx.translate(x - r, y - r); cx.scale(r / 20, r / 20); cx.fillStyle = '#7a8594'; cx.fill(bos); }
   cx.restore();
 }
-const IKON_SOLUK = 0.55;   // hediye ikonunun opaklığı (1 = tam canlı, 0 = görünmez). Soluk: göze batmasın
+// Hediye ikonları referans videodaki gibi "nefes alır": hepsi birlikte yavaşça kararır, sonra canlı renkle parlar
+const IKON_NEFES = 5.0;     // bir kararıp-parlama turu kaç saniye (referansta ~5 sn)
+const IKON_EN_AZ = 0.18;    // en sönük anda opaklık (0 = tamamen kaybolur, 1 = hiç sönmez)
+function ikonParlaklik() {
+  let p = 0.5 - 0.5 * Math.cos(2 * Math.PI * (performance.now() / 1000) / IKON_NEFES);
+  p = p * p * (3 - 2 * p);   // parlak ve sönük anlarda biraz dursun, geçişler yumuşak
+  return p;
+}
 function rozetCiz(s, yMerkez) {
   const x = EKRAN.x + 22, h = 46, IK = 34;   // IK: hediye ikonu boyu (px) — görünür ama göze batmayan boy
   cx.font = '700 26px "Segoe UI", system-ui, sans-serif';
@@ -343,7 +365,7 @@ function rozetCiz(s, yMerkez) {
   yuvarlak(cx, x, yMerkez - h / 2, w, h, 14); cx.fill(); cx.stroke();
   // TikTok'un kendi hediye ikonları (public/ikon/<şerit>.png): Lazer Çubuğu, GG, Gül, TikTok, Dondurma
   const ik = resim('ikon/' + s.id + '.png');
-  if (ik && ik.complete && ik.naturalWidth) { cx.save(); cx.globalAlpha = IKON_SOLUK; cx.filter = 'saturate(0.6)'; cx.drawImage(ik, x + 10, yMerkez - IK / 2, IK, IK); cx.restore(); }
+  if (ik && ik.complete && ik.naturalWidth) { const p = ikonParlaklik(); cx.save(); cx.globalAlpha = IKON_EN_AZ + (1 - IKON_EN_AZ) * p; cx.filter = `saturate(${(0.5 + 0.7 * p).toFixed(2)})`; cx.drawImage(ik, x + 10, yMerkez - IK / 2, IK, IK); cx.restore(); }
   else if (s.id === 'suriye') { cx.font = '900 20px "Segoe UI", sans-serif'; cx.textBaseline = 'middle'; cx.fillStyle = '#ffd23f'; cx.fillText('GG', x + 16, yMerkez + 1); }
   else { cx.font = '26px "Segoe UI Emoji"'; cx.textBaseline = 'middle'; cx.fillText({ kurdistan: '🌹', turkiye: '🎵', azerbaycan: '🍦', afghanistan: '🪄' }[s.id] || '🎁', x + 14, yMerkez + 1); }
   cx.font = '700 26px "Segoe UI", system-ui, sans-serif'; cx.fillStyle = '#fff'; cx.textBaseline = 'middle';
@@ -685,7 +707,7 @@ function kare(simdi) {
       }
     }
     if (g.halka) halkaCiz(burun - dw * 0.42, y, dw * 0.78, SERIT_H * 0.96, g.halka);
-    if (g.img.complete && g.img.naturalWidth) cx.drawImage(g.img, (fr % (m.sutun || m.kare)) * m.w, Math.floor(fr / (m.sutun || m.kare)) * m.h, m.w, m.h, ox - bw / 2, y - bh / 2 + SERIT_H * 0.02, bw, bh);
+    if (g.img.complete && g.img.naturalWidth) cx.drawImage(g.kontrastli || g.img, (fr % (m.sutun || m.kare)) * m.w, Math.floor(fr / (m.sutun || m.kare)) * m.h, m.w, m.h, ox - bw / 2, y - bh / 2 + SERIT_H * 0.02, bw, bh);
   }
   if (CANLI) parcaCiz(dt);
   // çizgiler (renkleri yavaşça gökkuşağı gibi döner)
