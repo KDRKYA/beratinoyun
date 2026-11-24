@@ -118,7 +118,7 @@
           <div id="kesmeSatirlar"></div>
           <div id="yerUyari" style="display:none;color:#ffb86b;font-size:13px;margin:4px 0 8px"></div>
           <button id="yerSifirla" class="kucuk" style="margin-top:4px">Varsayılana dön</button>
-          <div class="ipucu" style="margin-top:8px">Soldaki önizlemede <b>sarı çizgiyi</b> yukarı/aşağı sürükle: üstteki oyun küçülür/büyür, alttaki video o kadar uzar/kısalır. <b>Üstteki oyun alanını</b> sağa/sola sürükle: oyun kayar. <b>Yeşil video alanını</b> sağa/sola sürükle: videonun görünen kısmı kayar. <b>Kesme</b>: oyunun sol/sağ kenarı kesilince orası koyu kalır; videonun bir kenarı kesilince kalan kısım büyüyüp alanı doldurur (yazılar, siyah bantlar gider). Yayındaki oyuna anında uygulanır ve kaydedilir.</div>
+          <div class="ipucu" style="margin-top:8px">Soldaki önizlemede <b>sarı çizgiyi</b> yukarı/aşağı sürükle: üstteki oyun küçülür/büyür, alttaki video o kadar uzar/kısalır. <b>Üstteki oyun alanını</b> sağa/sola sürükle: oyun kayar. <b>Yeşil video alanını</b> sağa/sola sürükle: videonun görünen kısmı kayar. <b>Kesme</b>: oyunun sol/sağ kenarı kesilince orası koyu kalır; üstü/altı kesilince oyun yukarı toplanır ve video o kadar uzar; videonun bir kenarı kesilince kalan kısım büyüyüp alanı doldurur (yazılar, siyah bantlar gider). Yayındaki oyuna anında uygulanır ve kaydedilir.</div>
         </div>
       </div>
     </div>
@@ -190,16 +190,16 @@ document.querySelectorAll('[data-ses]').forEach(b => b.addEventListener('click',
   $({ tik: '#sesTik', muzik: '#sesMuzik', gecikme: '#sesGecikme' }[alan]).value = sesDeger[alan];
 }));
 // ---- Yerleşim (üst oyunun ölçeği, alt videonun yatay kaydırması) ----
-const KESME = [['oyunSol', '📺 Oyun solu'], ['oyunSag', '📺 Oyun sağı'], ['videoKirp', '🎬 Video üstü'], ['videoAlt', '🎬 Video altı'], ['videoSol', '🎬 Video solu'], ['videoSag', '🎬 Video sağı']];
+const KESME = [['oyunUst', '📺 Oyun üstü'], ['oyunAlt', '📺 Oyun altı'], ['oyunSol', '📺 Oyun solu'], ['oyunSag', '📺 Oyun sağı'], ['videoKirp', '🎬 Video üstü'], ['videoAlt', '🎬 Video altı'], ['videoSol', '🎬 Video solu'], ['videoSag', '🎬 Video sağı']];
 $('#kesmeSatirlar').innerHTML = KESME.map(([k, ad]) => `<div class="ses-satir"><span>${ad}</span><button class="kucuk" data-yer="${k}" data-adim="-0.01">−</button><input type="range" id="kes_${k}" min="0" max="0.4" step="0.005"><button class="kucuk" data-yer="${k}" data-adim="0.01">+</button><b id="kesYazi_${k}">–</b></div>`).join('');
 const YER_ALANLAR = ['ust', 'videoX', 'oyunX', ...KESME.map(x => x[0])];
 const SAHNE_ORAN = 896 / 1920;   // üst sahnenin tuvaldeki yüksekliği (ölçek 1'de)
 let yerSunucuEski = false, yerOyunEski = false, yerSonDegisim = 0;
-let yerDeger = { ust: 1, videoX: 0, oyunX: 0, oyunSol: 0, oyunSag: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 }, yerSurukle = false, yerZaman = null, yerBekleyen = {};
+let yerDeger = { ust: 1, videoX: 0, oyunX: 0, oyunSol: 0, oyunSag: 0, oyunUst: 0, oyunAlt: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 }, yerSurukle = false, yerZaman = null, yerBekleyen = {};
 function yerGoster(y) {
   yerDeger = { ...yerDeger, ...y };
   const kutuH = $('#yerOnizleme').clientHeight || 320;
-  const ustH = kutuH * SAHNE_ORAN * yerDeger.ust;
+  const ustH = kutuH * SAHNE_ORAN * yerDeger.ust * Math.max(.1, 1 - yerDeger.oyunUst - yerDeger.oyunAlt);
   $('#yerUst').style.height = ustH + 'px';
   $('#yerTv').style.width = (yerDeger.ust * 100) + '%';
   $('#yerTv').style.transform = 'translateX(' + (yerDeger.oyunX * 25 / yerDeger.ust) + '%)';
@@ -247,7 +247,7 @@ $('#yerSifirla').addEventListener('click', () => { for (const k of YER_ALANLAR) 
   kutu.addEventListener('pointermove', e => {
     if (!mod) return;
     const r = kutu.getBoundingClientRect();
-    if (mod === 'ust') yerGonder('ust', (e.clientY - r.top) / r.height / SAHNE_ORAN);
+    if (mod === 'ust') yerGonder('ust', (e.clientY - r.top) / r.height / SAHNE_ORAN / Math.max(.1, 1 - yerDeger.oyunUst - yerDeger.oyunAlt));
     else if (mod === 'oyun') yerGonder('oyunX', basV + (e.clientX - basX) / (r.width * 0.25));   // oyun parmağı takip eder
     else yerGonder('videoX', basV - (e.clientX - basX) / (r.width * 0.35));   // videoyu sağa çekmek = soldaki kısmı göstermek
   });
