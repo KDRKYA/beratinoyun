@@ -21,7 +21,9 @@ const muzikTampon = new Map();// yol -> bölüm (AudioBuffer)
 const kuyruk = [];            // yüklenecek şarkılar (tek tek çözülür, bellek patlamasın)
 let yukleniyor = null;
 
-function muzikParcalar(id) { return (muzikListe[id] || []).filter(x => !x.mars); }
+const bozuk = new Map();      // yol -> neden (çözülemeyen / çok büyük şarkılar atlanır, sıradakine geçilir)
+const MUZIK_EN_BUYUK = 40e6;  // bundan büyük dosya (saatlik mix vb.) belleği patlatır: atlanır
+function muzikParcalar(id) { return (muzikListe[id] || []).filter(x => !x.mars && !bozuk.has(x.yol)); }
 function dosyaAdi(yol) { return decodeURIComponent(yol.split('/').pop()); }
 
 async function muzikListeYukle() {
@@ -70,7 +72,9 @@ async function kuyrukIsle() {
   sesHazirla(); if (!ses) return;
   const { yol, id } = kuyruk.shift(); yukleniyor = yol;
   try {
-    const tam = await ses.decodeAudioData(await (await fetch(yol)).arrayBuffer());
+    const veri = await (await fetch(yol)).arrayBuffer();
+    if (veri.byteLength > MUZIK_EN_BUYUK) throw new Error('dosya çok büyük (' + Math.round(veri.byteLength / 1e6) + ' MB)');
+    const tam = await ses.decodeAudioData(veri);
     const sr = tam.sampleRate;
     const b = elleAyar(id, dosyaAdi(yol)) || enHareketli(tam);
     const b0 = Math.max(0, Math.min(Math.floor(b.bas * sr), tam.length - sr));
@@ -81,7 +85,13 @@ async function kuyrukIsle() {
     muzikTampon.set(yol, kes);
     tamponTemizle();
     if (calanSerit === id && !oynatici) muzikCal(id);
-  } catch (e) { console.warn('müzik yüklenemedi', yol, e); }
+  } catch (e) {
+    console.warn('müzik yüklenemedi', yol, e);
+    bozuk.set(yol, String((e && e.message) || e).slice(0, 80));
+    const l = muzikParcalar(id);                                   // bu şarkıyı atla, sıradakini hazırla
+    if (l.length) yukle(l[(sira[id] || 0) % l.length].yol, id);
+    if (calanSerit === id && !oynatici) muzikCal(id);
+  }
   yukleniyor = null; kuyrukIsle();
 }
 // bellekte çok şarkı birikmesin: çalan ve her ülkenin sıradaki şarkısı dışındakileri at
@@ -151,3 +161,15 @@ function muzikKontrol() {
   else if (!oynatici && muzikTampon.size) muzikCal(lider.id);                   // hiç çalmıyorsa başlat
 }
 setInterval(muzikKontrol, MUZIK_KONTROL);
+
+// ---------- Panele müzik durumu: her ülkede kaç şarkı var, kaçı hazır, hangisi çalıyor ----------
+function muzikDurumGonder() {
+  const ws = window.oyunSoket; if (!ws || ws.readyState !== 1) return;
+  const ulkeler = {};
+  for (const id of Object.keys(muzikListe)) {
+    const hepsi = (muzikListe[id] || []).filter(x => !x.mars);
+    ulkeler[id] = hepsi.map(x => ({ ad: dosyaAdi(x.yol), hazir: muzikTampon.has(x.yol), bozuk: bozuk.get(x.yol) || null }));
+  }
+  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 2, ulkeler, calan: oynatici ? { id: oynatici.id, ad: dosyaAdi(oynatici.yol) } : null, sesDurum: ses ? ses.state : 'yok' }));
+}
+setInterval(muzikDurumGonder, 3000);

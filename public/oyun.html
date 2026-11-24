@@ -70,6 +70,9 @@ const HIZ = 1.7;                               // koşu animasyonu hızı (1 = G
 const AVATAR_BOY = 23;                         // profil resmi yarıçapı (piksel). Büyük sayı = büyük resim
 const AVATAR_SURE = 220;                       // profil resminin hayvana uçma süresi (ms). Küçük sayı = daha hızlı
 const AVATAR_ARALIK = 120;                     // art arda gelen resimler arası bekleme (ms). Küçük sayı = daha sık
+const TOPLU_TABAN = 1500;                      // çok hediye gelince toplam süre = TOPLU_TABAN + adet × TOPLU_ADET (ms). 50 hediye ≈ 2,75 sn, 100 hediye ≈ 4 sn
+const TOPLU_ADET = 25;
+const TOPLU_EGRI = 0.8;                        // 0 = hep aynı hız, 0.9'a yaklaştıkça başta/sonda daha yavaş, ortada daha hızlı
 const CIZGI_HIZ = 240;                         // şerit çizgilerinin sola akma hızı (piksel/saniye). 0 = durur
 const LIDER_BUYUME = 0.22;                     // lider her hit aldığında ne kadar büyür (0.22 = %22)
 const LIDER_BUYUME_MAX = 0.32;                 // art arda hitlerde en fazla büyüme
@@ -301,8 +304,13 @@ function hediyeGeldi(m) {
   // sıradaki avatarlar, bu şeritte hâlâ uçanların arkasından gelsin (üst üste binmesin)
   const sonBas = ucanlar.filter(u => u.id === m.serit).reduce((a, u) => Math.max(a, u.bas), simdi - AVATAR_ARALIK);
   const ilk = Math.max(simdi, sonBas + AVATAR_ARALIK);
+  // Çok hediye (50, 100...) gelince: yavaş başla, ortada hızlan, sonda tekrar yavaşla. Toplam süre kısalır.
+  // Az hediyede (6 ve altı) eskisi gibi eşit aralıkla.
+  const toplam = adet <= 6 ? adet * AVATAR_ARALIK : Math.min(adet * AVATAR_ARALIK, TOPLU_TABAN + adet * TOPLU_ADET);
+  const zaman = i => adet <= 6 ? i * AVATAR_ARALIK
+    : (u => toplam * (u + TOPLU_EGRI * Math.sin(2 * Math.PI * u) / (2 * Math.PI)))(i / adet);   // eğim: uçlarda yavaş, ortada hızlı
   for (let i = 0; i < adet; i++) {
-    const bas = ilk + i * AVATAR_ARALIK;
+    const bas = ilk + zaman(i);
     ucanlar.push({ id: m.serit, bas, sure: AVATAR_SURE, foto: resim(m.kullanici && m.kullanici.foto), sayar: true });
     tik(bas - simdi + AVATAR_SURE);
   }
@@ -700,6 +708,7 @@ function sesAyarUygula(s) {
 }
 function soket() {
   const ws = new WebSocket('ws://' + location.host + '/?rol=oyun');
+  window.oyunSoket = ws;   // muzik.js müzik durumunu panele bu bağlantıyla bildirir
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.ses) sesAyarUygula(m.ses);   // panelden ses ayarı (durum ve 'ses' mesajlarında gelir)

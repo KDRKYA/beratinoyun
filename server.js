@@ -224,7 +224,7 @@ function komut(m) {
 
 // ---------- HTTP ----------
 const TURLER = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.oga': 'audio/ogg', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.webm': 'audio/webm' };
-const MUZIK_UZANTI = ['.mp3', '.wav', '.ogg', '.oga', '.m4a', '.aac', '.webm'];
+const MUZIK_UZANTI = ['.mp3', '.wav', '.ogg', '.oga', '.m4a', '.aac', '.webm', '.opus'];
 const sunucu = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/api/teshis') {   // telefondaki ses durumunu görmek için (geçici)
@@ -278,12 +278,19 @@ const sunucu = http.createServer((req, res) => {
     res.end(veri);
   });
 });
+let sonMuzikDurum = null;   // oyun sayfasının son bildirdiği müzik durumu (panelde gösterilir)
 const wss = new WebSocketServer({ server: sunucu });
 wss.on('connection', (ws, req) => {
   ws.rol = new URL(req.url, 'http://x').searchParams.get('rol') || 'oyun';
   istemciler.add(ws);
   ws.send(JSON.stringify(durumOzet()));
-  ws.on('message', b => { if (ws.rol !== 'panel') return; try { komut(JSON.parse(b)); } catch (e) { console.error(e); } });
+  ws.on('message', b => {
+    let m; try { m = JSON.parse(b); } catch { return; }
+    if (ws.rol === 'oyun' && m.tip === 'muzikDurum') { sonMuzikDurum = { ...m, zaman: Date.now() }; return yayinla(sonMuzikDurum, 'panel'); }   // oyun sayfası müzik durumunu bildirir
+    if (ws.rol !== 'panel') return;
+    try { komut(m); } catch (e) { console.error(e); }
+  });
+  if (ws.rol === 'panel' && sonMuzikDurum) ws.send(JSON.stringify(sonMuzikDurum));
   ws.on('close', () => istemciler.delete(ws));
 });
 // 0.0.0.0: aynı Wi-Fi'deki telefon/tablet de açabilsin
