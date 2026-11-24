@@ -68,8 +68,9 @@ function tik(sonraMs = 0) {
   // ses, değme anına önceden zamanlanır (ekran takılsa bile tam vaktinde çalar);
   // vuruşun tepesi dosyada ~20 ms sonra geldiği ve hoparlör gecikmesi olduğu için biraz erken başlatılır
   const gecikme = (ses.outputLatency || ses.baseLatency || 0) + (sesTampon ? sesTepe : 0.02);
-  const t = Math.max(ses.currentTime, ses.currentTime + sonraMs / 1000 - gecikme);
-  if (Math.abs(t - sonTik) < 0.012) return;   // aynı anda iki kez tetiklenmesin
+  const kayma = (typeof SES_KAYMA !== 'undefined' ? SES_KAYMA : 0) / 1000;   // panelden 'Ses senkronu' (OBS/yayın gecikmesini dengeler)
+  const t = Math.max(ses.currentTime, ses.currentTime + sonraMs / 1000 - gecikme + kayma);
+  if (Math.abs(t - sonTik) < 0.004) return;   // aynı anda iki kez tetiklenmesin
   sonTik = t;
   const cikis = ses.createGain(); cikis.gain.value = SES_SEVIYE; cikis.connect(anaCikis);
   if (sesTampon) { dosyaCal(t, cikis); return; }

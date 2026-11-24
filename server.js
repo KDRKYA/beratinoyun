@@ -60,7 +60,7 @@ function yayinla(mesaj, hedef) {
   for (const ws of istemciler) if (!hedef || ws.rol === hedef) { try { ws.send(s); } catch {} }
 }
 // Yayındaki ses seviyeleri (panelden ayarlanır): tik = vuruş sesi (1 = %100, 2 = %200), muzik = ülke müziği (0-1)
-const SES_VARSAYILAN = { tik: 1.4, muzik: 0.5 };
+const SES_VARSAYILAN = { tik: 1.4, muzik: 0.5, gecikme: 0 };   // gecikme: tık sesinin kayması (ms, + = ses daha geç)
 function sesAyar() { return { ...SES_VARSAYILAN, ...(durum.ses || {}) }; }
 // Yerleşim (panelden sürükleyerek): ust = üstteki oyunun ölçeği (1 = normal), videoX = alt videonun yatay kaydırması (-1 sol ... 1 sağ)
 const YER_VARSAYILAN = { ust: 1, videoX: 0, oyunX: 0, videoKirp: 0 };   // videoKirp = videonun üstünden kesilen pay (0-0.3), üstteki yazıları gizlemek için   // oyunX = üstteki oyunun yatay kaydırması (-1 sol ... 1 sağ)
@@ -189,6 +189,7 @@ function komut(m) {
       const s = sesAyar();
       if (m.tik !== undefined && Number.isFinite(Number(m.tik))) s.tik = Math.max(0, Math.min(2.5, Number(m.tik)));
       if (m.muzik !== undefined && Number.isFinite(Number(m.muzik))) s.muzik = Math.max(0, Math.min(1, Number(m.muzik)));
+      if (m.gecikme !== undefined && Number.isFinite(Number(m.gecikme))) s.gecikme = Math.max(-300, Math.min(300, Math.round(Number(m.gecikme))));
       durum.ses = s; kaydet();
       yayinla({ tip: 'ses', ses: s });
       break;

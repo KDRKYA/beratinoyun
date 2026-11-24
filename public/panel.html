@@ -98,6 +98,8 @@
       <h2>Yayın sesi</h2>
       <div class="ses-satir"><span>🔊 Vuruş (tık)</span><button class="kucuk" data-ses="tik" data-adim="-0.1">−</button><input type="range" id="sesTik" min="0" max="2.5" step="0.05"><button class="kucuk" data-ses="tik" data-adim="0.1">+</button><b id="sesTikYazi">–</b></div>
       <div class="ses-satir"><span>🎵 Müzik</span><button class="kucuk" data-ses="muzik" data-adim="-0.05">−</button><input type="range" id="sesMuzik" min="0" max="1" step="0.01"><button class="kucuk" data-ses="muzik" data-adim="0.05">+</button><b id="sesMuzikYazi">–</b></div>
+      <div class="ses-satir"><span>⏱️ Ses senkronu</span><button class="kucuk" data-ses="gecikme" data-adim="-10">−</button><input type="range" id="sesGecikme" min="-300" max="300" step="10"><button class="kucuk" data-ses="gecikme" data-adim="10">+</button><b id="sesGecikmeYazi">–</b></div>
+      <div class="ipucu" style="margin-bottom:6px">Yayında tık sesi avatar hayvana değmeden <b>önce</b> geliyorsa <b>+</b>, değdikten <b>sonra</b> geliyorsa <b>−</b> yap. Paneldeki +1 / +10 butonlarıyla deneyerek ayarla.</div>
       <div class="ipucu">Sadece yayındaki oyun sayfasının sesini değiştirir, anında uygulanır ve kaydedilir. Panelde ses çalmaz.</div>
     </div>
     <div class="kart" style="margin-bottom:16px">
@@ -162,27 +164,28 @@ const BAYRAK = { afghanistan: '🇦🇫', suriye: '🇸🇾', kurdistan: '☀️
 const DURUM_YAZI = { kapali: 'Kapalı', baglaniyor: 'Bağlanıyor', bagli: 'Bağlı', yeniden: 'Yeniden deniyor', hata: 'Hata' };
 const gonder = m => ws && ws.readyState === 1 && ws.send(JSON.stringify(m));
 // ---- Yayın sesi (oyun sayfasının vuruş ve müzik sesi) ----
-let sesDeger = { tik: 1.4, muzik: 0.5 }, sesSurukle = false, sesZaman = null;
+let sesDeger = { tik: 1.4, muzik: 0.5, gecikme: 0 }, sesSurukle = false, sesZaman = null;
 function sesGoster(s) {
   sesDeger = { ...sesDeger, ...s };
-  if (!sesSurukle) { $('#sesTik').value = sesDeger.tik; $('#sesMuzik').value = sesDeger.muzik; }
+  if (!sesSurukle) { $('#sesTik').value = sesDeger.tik; $('#sesMuzik').value = sesDeger.muzik; $('#sesGecikme').value = sesDeger.gecikme; }
+  $('#sesGecikmeYazi').textContent = sesDeger.gecikme === 0 ? '0 ms' : (sesDeger.gecikme > 0 ? '+' : '') + sesDeger.gecikme + ' ms';
   $('#sesTikYazi').textContent = Math.round(sesDeger.tik * 100) + '%';
   $('#sesMuzikYazi').textContent = Math.round(sesDeger.muzik * 100) + '%';
 }
 function sesGonder(alan, v) {
   const sinir = alan === 'tik' ? 2.5 : 1;
-  sesDeger[alan] = Math.round(Math.max(0, Math.min(sinir, v)) * 100) / 100;
+  sesDeger[alan] = alan === 'gecikme' ? Math.round(Math.max(-300, Math.min(300, v))) : Math.round(Math.max(0, Math.min(sinir, v)) * 100) / 100;
   sesGoster({});
   clearTimeout(sesZaman); sesZaman = setTimeout(() => gonder({ tip: 'ses', [alan]: sesDeger[alan] }), 60);
 }
-for (const [id, alan] of [['#sesTik', 'tik'], ['#sesMuzik', 'muzik']]) {
+for (const [id, alan] of [['#sesTik', 'tik'], ['#sesMuzik', 'muzik'], ['#sesGecikme', 'gecikme']]) {
   const el = $(id);
   el.addEventListener('input', () => { sesSurukle = true; sesGonder(alan, Number(el.value)); });
   el.addEventListener('change', () => { sesSurukle = false; });
 }
 document.querySelectorAll('[data-ses]').forEach(b => b.addEventListener('click', () => {
   const alan = b.dataset.ses; sesGonder(alan, sesDeger[alan] + Number(b.dataset.adim));
-  $(alan === 'tik' ? '#sesTik' : '#sesMuzik').value = sesDeger[alan];
+  $({ tik: '#sesTik', muzik: '#sesMuzik', gecikme: '#sesGecikme' }[alan]).value = sesDeger[alan];
 }));
 // ---- Yerleşim (üst oyunun ölçeği, alt videonun yatay kaydırması) ----
 const SAHNE_ORAN = 896 / 1920;   // üst sahnenin tuvaldeki yüksekliği (ölçek 1'de)
