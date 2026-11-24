@@ -67,6 +67,10 @@ const EKRAN = SAHNE ? { ...SAHNE.ekran }
 const SERIT_H = EKRAN.h / 5;
 const HAYVAN_BOY = 0.8;                       // hayvan büyüklüğü (şerit yüksekliğine göre)
 const HIZ = 1.7;                               // koşu animasyonu hızı (1 = GIF'in kendi hızı)
+// Koşu karesi ekran yenilemesine kilitli ilerler: 60 Hz'de her yenilemede 1, 30 Hz'de (OBS) her yenilemede 2 kare.
+// Zamanla hesaplanınca bazen 1 bazen 2 kare atlanıyor, koşu "takılıyor" gibi görünüyordu.
+const KOSU_KARE_HZ = 60;
+let kosuAdim = 0, kosuSaat = 0;
 const AVATAR_BOY = 23;                         // profil resmi yarıçapı (piksel). Büyük sayı = büyük resim
 const AVATAR_SURE = 220;                       // profil resminin hayvana uçma süresi (ms). Küçük sayı = daha hızlı
 const AVATAR_ARALIK = 120;                     // art arda gelen resimler arası bekleme (ms). Küçük sayı = daha sık
@@ -251,6 +255,13 @@ function arkaCiz() {
   { const x = Math.floor(EKRAN.x), y = Math.floor(EKRAN.y), w = Math.ceil(EKRAN.w), h = Math.ceil(EKRAN.h);
     const t = document.createElement('canvas'); t.width = w; t.height = h; t.getContext('2d').drawImage(arka, x, y, w, h, 0, 0, w, h);
     c.save(); yuvarlak(c, EKRAN.x, EKRAN.y, EKRAN.w, EKRAN.h, EKRAN.r); c.clip(); c.filter = EKRAN_FILTRE; c.clearRect(x, y, w, h); c.drawImage(t, x, y); c.restore(); }
+  // oda parlaklığı (panelden): TV ekranındaki oyun ve alttaki video hariç her yer (duvar, lamba, TV kasası, zemin)
+  const op = (typeof YER !== 'undefined' && YER.odaParlak) || 1;
+  if (op !== 1) {
+    const t = document.createElement('canvas'); t.width = W; t.height = DUVAR_ALT; t.getContext('2d').drawImage(arka, 0, 0);
+    c.save(); c.beginPath(); c.rect(0, 0, W, DUVAR_ALT); c.rect(EKRAN.x, EKRAN.y, EKRAN.w, EKRAN.h); c.clip('evenodd');   // ekran hariç
+    c.clearRect(0, 0, W, DUVAR_ALT); c.filter = `brightness(${op})`; c.drawImage(t, 0, 0); c.restore();
+  }
   // tüp camı katmanı (her karede içeriğin üstüne çizilir)
   const k = cam.getContext('2d');
   k.clearRect(0, 0, W, H);
@@ -390,7 +401,7 @@ function halkaCiz(x, y, w, h, t) {
 const altVideo = VIDEO_DOSYA ? Object.assign(document.createElement('video'), { src: VIDEO_DOSYA, muted: true, loop: true, playsInline: true, autoplay: true, preload: 'auto' }) : null;
 if (altVideo) { altVideo.setAttribute('playsinline', ''); altVideo.play().catch(() => {}); addEventListener('pointerdown', () => altVideo.paused && altVideo.play().catch(() => {})); }
 // Yerleşim (panelden ayarlanır): ust = üst sahnenin ölçeği, videoX = videonun yatay kaydırması (-1 sol, 0 orta, 1 sağ)
-const YER = { ust: 1, videoX: 0, oyunX: 0, oyunY: 0, videoY: 0, videoZoom: 1, oyunSol: 0, oyunSag: 0, oyunUst: 0, oyunAlt: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 };
+const YER = { odaParlak: 1, ust: 1, videoX: 0, oyunX: 0, oyunY: 0, videoY: 0, videoZoom: 1, oyunSol: 0, oyunSag: 0, oyunUst: 0, oyunAlt: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 };
 // oyunX: üstteki oyunun yatay kaydırması (-1 sol, 1 sağ; genişliğin %25'i kadar). oyunSol/oyunSag: üstteki oyunun yanlarından kesilen pay, yeri koyu kalır. oyunUst/oyunAlt: üstünden/altından kesilir, kalan kısım yukarı toplanır, video da o kadar yukarı uzar (0-0.4)
 // videoKirp/videoAlt/videoSol/videoSag: videonun GÖRÜNEN kısmının üst/alt/sol/sağından kesilen pay (0-0.4); kalan kısım alanı doldurur
 const OYUN_KAYMA = 0.25;
@@ -654,6 +665,7 @@ function lambaMaske() {
 let onceki = performance.now();
 function kare(simdi) {
   const dt = Math.min(50, simdi - onceki); onceki = simdi;
+  kosuSaat += dt * KOSU_KARE_HZ / 1000; kosuAdim = Math.round(kosuSaat);   // 60/30 Hz'de yenileme başına tam 1/2 kare (düzenli akış)
   cx.clearRect(0, 0, W, H);
   altVideoCiz();
   // üst sahne ölçeklenir: yukarıya yaslı, yatayda ortalı. Küçülünce yanlar koyu zeminle dolar
@@ -680,7 +692,7 @@ function kare(simdi) {
   let tac = null;
   for (const { s, g, y: y0 } of satirlar) {
     const m = g.meta, sc = (SERIT_H * HAYVAN_BOY) / m.h, dw = m.w * sc, dh = m.h * sc;
-    const fr = Math.floor(simdi * HIZ / m.ms) % m.kare;
+    const fr = kosuAdim % m.kare;
     const burun = g.x + g.atil;
     const lider = g.hedefSira === 0 && s.puan > 0;
     // koşarken hafif yaylanma (her hayvan farklı fazda)
@@ -760,7 +772,11 @@ function soket() {
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.ses) sesAyarUygula(m.ses);   // panelden ses ayarı (durum ve 'ses' mesajlarında gelir)
-    if (m.yer) for (const k of Object.keys(YER)) if (Number.isFinite(m.yer[k])) YER[k] = m.yer[k];   // panelden yerleşim
+    if (m.yer) {   // panelden yerleşim
+      const eskiOda = YER.odaParlak;
+      for (const k of Object.keys(YER)) if (Number.isFinite(m.yer[k])) YER[k] = m.yer[k];
+      if (YER.odaParlak !== eskiOda) arkaCiz();   // oda parlaklığı arka plana bir kez işlenir
+    }
     if (m.tip === 'durum') {
       const ilk = !seritler.length;
       seritler = m.seritler.map(s => ({ ...s }));
