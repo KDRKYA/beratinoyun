@@ -180,6 +180,19 @@ const EKRAN_KONTRAST = 1.22;    // 1 = değişiklik yok. Büyüdükçe koyular k
 const EKRAN_DOYGUNLUK = 1.15;   // 1 = değişiklik yok. Büyüdükçe renkler canlanır
 const EKRAN_PARLAKLIK = 0.97;   // 1 = değişiklik yok
 const EKRAN_FILTRE = `contrast(${EKRAN_KONTRAST}) saturate(${EKRAN_DOYGUNLUK}) brightness(${EKRAN_PARLAKLIK})`;
+// Hayvan görselleri ekranda en fazla ~150 px boyunda çiziliyor ama kaynak kareler 220-245 px.
+// Kopya %60 boyda tutulur: bellek ~3 kat azalır, her karede çizim hızlanır (yayında donmayı azaltır), görüntü farkı yok.
+const HAYVAN_KOPYA_OLCEK = 0.6;
+function hayvanKopya(g, hedef = null) {   // kontrastlı, parlaklığı ayarlı ve küçültülmüş sprite kopyası
+  const m = g.meta, sut = m.sutun || m.kare;
+  const fw = Math.round(m.w * HAYVAN_KOPYA_OLCEK), fh = Math.round(m.h * HAYVAN_KOPYA_OLCEK);   // kare boyu tam sayı: kareler birbirine taşmaz
+  const satir = Math.round(g.img.naturalHeight / m.h);
+  const c = hedef || document.createElement('canvas'); c.width = fw * sut; c.height = fh * satir;
+  const k = c.getContext('2d'); k.clearRect(0, 0, c.width, c.height); k.imageSmoothingQuality = 'high';
+  k.filter = EKRAN_FILTRE + (YER.hayvanParlak !== 1 ? ` brightness(${YER.hayvanParlak})` : '');
+  k.drawImage(g.img, 0, 0, m.w * sut, m.h * satir, 0, 0, c.width, c.height);
+  g.kw = fw; g.kh = fh; return c;
+}
 function filtreliKopya(kaynak, w, h, parlak = 1, hedef = null) {   // görselin kontrastlı (ve istenirse parlaklığı ayarlı) kopyası
   const c = hedef || document.createElement('canvas'); c.width = w; c.height = h;
   const k = c.getContext('2d'); k.clearRect(0, 0, w, h); k.filter = EKRAN_FILTRE + (parlak !== 1 ? ` brightness(${parlak})` : ''); k.drawImage(kaynak, 0, 0); return c;
@@ -190,7 +203,7 @@ function hayvanlariYenile() {
   clearTimeout(_hayvanZaman);
   _hayvanZaman = setTimeout(() => {
     for (const g of Object.values(gorsel)) if (g.img.complete && g.img.naturalWidth) {
-      try { g.kontrastli = filtreliKopya(g.img, g.img.naturalWidth, g.img.naturalHeight, YER.hayvanParlak, g.kontrastli); } catch {}
+      try { g.kontrastli = hayvanKopya(g, g.kontrastli); } catch {}
     }
   }, 250);
 }
@@ -309,7 +322,7 @@ async function spritelariYukle() {
   for (const id of Object.keys(spriteMeta)) {
     const im = new Image(); im.src = 'sprites/' + id + '.png';
     gorsel[id] = { img: im, meta: spriteMeta[id], x: BURUN_MIN, sira: 0, hedefSira: 0, atil: 0, buyu: 0, halka: 0, son: [] };
-    im.onload = () => { try { gorsel[id].kontrastli = filtreliKopya(im, im.naturalWidth, im.naturalHeight, YER.hayvanParlak); } catch {} };   // kontrastlı kopya (bir kez)
+    im.onload = () => { try { gorsel[id].kontrastli = hayvanKopya(gorsel[id]); } catch (e) { console.warn('hayvan kopyası', e); } };   // kontrastlı, küçültülmüş kopya (bir kez)
   }
 }
 
@@ -729,7 +742,8 @@ function kare(simdi) {
       }
     }
     if (g.halka) halkaCiz(burun - dw * 0.42, y, dw * 0.78, SERIT_H * 0.96, g.halka);
-    if (g.img.complete && g.img.naturalWidth) cx.drawImage(g.kontrastli || g.img, (fr % (m.sutun || m.kare)) * m.w, Math.floor(fr / (m.sutun || m.kare)) * m.h, m.w, m.h, ox - bw / 2, y - bh / 2 + SERIT_H * 0.02, bw, bh);
+    if (g.kontrastli) { const sut = m.sutun || m.kare; cx.drawImage(g.kontrastli, (fr % sut) * g.kw, Math.floor(fr / sut) * g.kh, g.kw, g.kh, ox - bw / 2, y - bh / 2 + SERIT_H * 0.02, bw, bh); }
+    else if (g.img.complete && g.img.naturalWidth) cx.drawImage(g.img, (fr % (m.sutun || m.kare)) * m.w, Math.floor(fr / (m.sutun || m.kare)) * m.h, m.w, m.h, ox - bw / 2, y - bh / 2 + SERIT_H * 0.02, bw, bh);
   }
   if (CANLI) parcaCiz(dt);
   // çizgiler (renkleri yavaşça gökkuşağı gibi döner)
