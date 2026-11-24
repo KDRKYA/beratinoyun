@@ -115,6 +115,7 @@
           <div class="ses-satir"><span>📺 Oyun ◀▶</span><button class="kucuk" data-yer="oyunX" data-adim="-0.05">−</button><input type="range" id="yerOyunAyar" min="-1" max="1" step="0.01"><button class="kucuk" data-yer="oyunX" data-adim="0.05">+</button><b id="yerOyunYazi">–</b></div>
           <div class="ses-satir"><span>🎬 Video ◀▶</span><button class="kucuk" data-yer="videoX" data-adim="-0.05">−</button><input type="range" id="yerVideoAyar" min="-1" max="1" step="0.01"><button class="kucuk" data-yer="videoX" data-adim="0.05">+</button><b id="yerVideoYazi">–</b></div>
           <div class="ses-satir"><span>✂️ Video üstü</span><button class="kucuk" data-yer="videoKirp" data-adim="-0.01">−</button><input type="range" id="yerKirpAyar" min="0" max="0.3" step="0.005"><button class="kucuk" data-yer="videoKirp" data-adim="0.01">+</button><b id="yerKirpYazi">–</b></div>
+          <div id="yerUyari" style="display:none;color:#ffb86b;font-size:13px;margin:4px 0 8px"></div>
           <button id="yerSifirla" class="kucuk" style="margin-top:4px">Varsayılana dön</button>
           <div class="ipucu" style="margin-top:8px">Soldaki önizlemede <b>sarı çizgiyi</b> yukarı/aşağı sürükle: üstteki oyun küçülür/büyür, alttaki video o kadar uzar/kısalır. <b>Üstteki oyun alanını</b> sağa/sola sürükle: oyun kayar. <b>Yeşil video alanını</b> sağa/sola sürükle: videonun görünen kısmı kayar. Videonun üstünde yazı varsa (ör. DIRECTOR MODE) <b>Video üstü</b> ile üstünü kes. Yayındaki oyuna anında uygulanır ve kaydedilir.</div>
         </div>
@@ -189,6 +190,7 @@ document.querySelectorAll('[data-ses]').forEach(b => b.addEventListener('click',
 }));
 // ---- Yerleşim (üst oyunun ölçeği, alt videonun yatay kaydırması) ----
 const SAHNE_ORAN = 896 / 1920;   // üst sahnenin tuvaldeki yüksekliği (ölçek 1'de)
+let yerSunucuEski = false, yerOyunEski = false, yerSonDegisim = 0;
 let yerDeger = { ust: 1, videoX: 0, oyunX: 0, videoKirp: 0 }, yerSurukle = false, yerZaman = null, yerBekleyen = {};
 function yerGoster(y) {
   yerDeger = { ...yerDeger, ...y };
@@ -206,7 +208,14 @@ function yerGoster(y) {
   $('#yerKirpYazi').textContent = yerDeger.videoKirp ? '%' + Math.round(yerDeger.videoKirp * 100) + ' kesik' : 'yok';
   $('#yerVideoYazi').textContent = yerDeger.videoX === 0 ? 'orta' : (yerDeger.videoX < 0 ? 'sol ' : 'sağ ') + Math.round(Math.abs(yerDeger.videoX) * 100) + '%';
 }
+function yerUyariGoster() {
+  const u = $('#yerUyari');
+  const m = yerSunucuEski ? '⚠️ Sunucu eski sürümde: bu ayarları kaydedemiyor. baslat.bat penceresini kapatıp yeniden aç, sonra bu sayfayı yenile (F5).'
+    : yerOyunEski ? '⚠️ Yayındaki oyun bu ayarı almıyor. OBS\'te oyun kaynağına sağ tık → Yenile. Düzelmezse oyun dosyası (oyun.html) eski kalmış.' : '';
+  u.textContent = m; u.style.display = m ? 'block' : 'none';
+}
 function yerGonder(alan, v) {
+  yerSonDegisim = Date.now();
   const [lo, hi] = alan === 'ust' ? [0.6, 1.5] : alan === 'videoKirp' ? [0, 0.3] : [-1, 1];
   yerDeger[alan] = Math.round(Math.max(lo, Math.min(hi, v)) * 100) / 100;
   yerGoster({});
@@ -244,6 +253,12 @@ yerGoster({});
 let muzikSon = 0;
 const ULKE_AD = { afghanistan: '🇦🇫 Afganistan', suriye: '🇸🇾 Suriye', kurdistan: '☀️ Kürdistan', turkiye: '🇹🇷 Türkiye', azerbaycan: '🇦🇿 Azerbaycan' };
 function muzikGoster(m) {
+  // oyun sayfası yerleşim ayarını gerçekten almış mı? (ayar değiştikten 4 sn sonra karşılaştır)
+  if (Date.now() - yerSonDegisim > 4000) {
+    const y = m.yer;
+    yerOyunEski = !y || !('videoKirp' in y) || ['ust', 'videoX', 'oyunX', 'videoKirp'].some(k => Math.abs((y[k] || 0) - (yerDeger[k] || 0)) > 0.004);
+    yerUyariGoster();
+  }
   muzikSon = Date.now();
   const kac = Object.values(m.ulkeler || {}).reduce((t, l) => t + l.length, 0);
   $('#muzikCalan').innerHTML = (m.calan ? '▶ Şimdi çalan: <b>' + esc(ULKE_AD[m.calan.id] || m.calan.id) + '</b> – ' + esc(m.calan.ad) : 'Şu an müzik çalmıyor (kimsenin puanı yoksa ya da berabereyse normal).')
@@ -340,7 +355,7 @@ function soket() {
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.ses) sesGoster(m.ses);
-    if (m.yer) yerGoster(m.yer);
+    if (m.yer && m.tip !== 'muzikDurum') { yerSunucuEski = !('videoKirp' in m.yer) || !('oyunX' in m.yer); yerUyariGoster(); yerGoster(m.yer); }
     if (m.tip === 'muzikDurum') { muzikGoster(m); return; }
     if (m.tip === 'durum') { durum = m; ciz(); }
     else if (m.tip === 'log') $('#log').insertAdjacentHTML('afterbegin', logSatir(m.kayit));

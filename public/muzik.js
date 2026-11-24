@@ -170,6 +170,6 @@ function muzikDurumGonder() {
     const hepsi = (muzikListe[id] || []).filter(x => !x.mars);
     ulkeler[id] = hepsi.map(x => ({ ad: dosyaAdi(x.yol), hazir: muzikTampon.has(x.yol), bozuk: bozuk.get(x.yol) || null }));
   }
-  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 2, ulkeler, calan: oynatici ? { id: oynatici.id, ad: dosyaAdi(oynatici.yol) } : null, sesDurum: ses ? ses.state : 'yok' }));
+  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 2, ulkeler, calan: oynatici ? { id: oynatici.id, ad: dosyaAdi(oynatici.yol) } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
 }
 setInterval(muzikDurumGonder, 3000);
