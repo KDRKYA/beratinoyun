@@ -37,13 +37,13 @@ $liste = [ordered]@{
     @('3-syrian-dabke-remix',    'ara:Syrian dabke remix'),
     @('4-syrian-wedding-dabke',  'ara:Syrian wedding dabke'))
   'afghanistan' = @(
-    @('1-homayun-mast-mix',      'https://youtu.be/2T8yPRKSuJs'),
+    @('1-homayun-mast-mix',      'ara:Homayun Sahebzai mast pashto song'),
     @('2-sorosh-moheb-attan',    'https://youtu.be/OivMaH-YcYI'),
     @('3-jannan-pashto-fast',    'https://youtu.be/MV2gpWF2MtA'),
     @('4-afghan-attan-remix',    'ara:Afghan attan song remix'))
   'azerbaycan' = @(
     @('1-azeri-remix',           'https://youtu.be/epzpl4k2Kq8'),
-    @('2-getme-remix',           'https://youtu.be/ypbopjISWPw'),
+    @('2-getme-remix',           'ara:Sovket Elekberova Getme remix'),
     @('3-qarabag',               'https://youtu.be/UukQT_ngHD0'),
     @('4-karabakh-trap-remix',   'https://youtu.be/A4UcdW5xEns'))
 }
