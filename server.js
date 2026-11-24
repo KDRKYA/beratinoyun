@@ -292,6 +292,7 @@ const sunucu = http.createServer((req, res) => {
     res.end(veri);
   });
 });
+const oyunSayfalari = new Map();   // kimlik -> son durum (açık oyun sayfaları)
 let sonMuzikDurum = null;   // oyun sayfasının son bildirdiği müzik durumu (panelde gösterilir)
 const wss = new WebSocketServer({ server: sunucu });
 wss.on('connection', (ws, req) => {
@@ -300,7 +301,15 @@ wss.on('connection', (ws, req) => {
   ws.send(JSON.stringify(durumOzet()));
   ws.on('message', b => {
     let m; try { m = JSON.parse(b); } catch { return; }
-    if (ws.rol === 'oyun' && m.tip === 'muzikDurum') { sonMuzikDurum = { ...m, zaman: Date.now() }; return yayinla(sonMuzikDurum, 'panel'); }   // oyun sayfası müzik durumunu bildirir
+    if (ws.rol === 'oyun' && m.tip === 'muzikDurum') {   // oyun sayfası müzik durumunu bildirir; aynı anda kaç oyun sayfası açık, panelde görünsün
+      ws.oyunKimlik = m.kimlik;
+      oyunSayfalari.set(String(m.kimlik || '?'), { zaman: Date.now(), sessiz: !!m.sessiz, obs: !!m.obs, calan: m.calan || null });
+      for (const [k, v] of oyunSayfalari) if (Date.now() - v.zaman > 10000) oyunSayfalari.delete(k);
+      const yayinVar = [...oyunSayfalari.values()].some(v => !v.sessiz);
+      if (m.sessiz && yayinVar && sonMuzikDurum) sonMuzikDurum = { ...sonMuzikDurum, oyunlar: [...oyunSayfalari.values()] };   // sessiz önizleme, yayındaki sayfanın bilgisini ezmesin
+      else sonMuzikDurum = { ...m, zaman: Date.now(), oyunlar: [...oyunSayfalari.values()] };
+      return yayinla(sonMuzikDurum, 'panel');
+    }
     if (ws.rol !== 'panel') return;
     try { komut(m); } catch (e) { console.error(e); }
   });

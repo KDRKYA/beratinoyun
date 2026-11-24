@@ -62,7 +62,7 @@ function dosyaCal(t, cikis) {
 }
 // Sentetik "tok" mekanik/optik klavye sesi: kısa yüksek tık + alçak gövde (thock)
 function tik(sonraMs = 0) {
-  if (SES_SEVIYE <= 0) return;
+  if (SES_SEVIYE <= 0 || (typeof MUZIK_SESSIZ !== 'undefined' && MUZIK_SESSIZ)) return;   // ?sessiz önizlemede tık da çalmaz
   sesHazirla(); if (!ses) return;
   if (ses.state === 'suspended') ses.resume();
   // ses, değme anına önceden zamanlanır (ekran takılsa bile tam vaktinde çalar);

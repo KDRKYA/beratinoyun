@@ -7,6 +7,9 @@
 //   "turkiye": { "dosya": "0-dombra.mp3", "bas": 49.48, "son": 90.07 }          (tek şarkı, eski biçim)
 //   "turkiye": { "parcalar": { "1-x.mp3": { "bas": 30, "son": 70 } } }         (istediğin kadar şarkı)
 // Klasöre dosya eklemek / ayarı değiştirmek yeterli; oyun 30 sn içinde kendisi görür.
+// ?sessiz ile açılan oyun sayfası (paneldeki önizleme) müzik çalmaz: yayındaki sayfayla üst üste binmesin
+const MUZIK_SESSIZ = new URLSearchParams(location.search).has('sessiz');
+const OYUN_KIMLIK = Math.random().toString(36).slice(2, 8);   // aynı anda kaç oyun sayfası açık, panel bunu görsün
 let MUZIK_SEVIYE = 0.5;      // müzik sesi (0-1). Panelden "Müzik sesi" ile değişir
 const MUZIK_GECIS = 0.15;    // lider değişince eski şarkının kısılma süresi (sn): yeni şarkı beklemeden başlar
 const BOLUM_SURE = 40;       // her şarkıdan kaç saniye çalsın (ayar.json'da bas/son yoksa)
@@ -158,6 +161,7 @@ function muzikSeviyeAyarla(v) {   // panelden gelen müzik sesi: çalan şarkıy
   if (oynatici && ses) { const t = ses.currentTime; oynatici.g.gain.cancelScheduledValues(t); oynatici.g.gain.setValueAtTime(oynatici.g.gain.value, t); oynatici.g.gain.linearRampToValueAtTime(MUZIK_SEVIYE, t + 0.2); }
 }
 function muzikKontrol() {
+  if (MUZIK_SESSIZ) return;
   if (typeof seritler === 'undefined' || !seritler.length) return;
   const sirali = [...seritler].sort((a, b) => b.puan - a.puan), lider = sirali[0];
   if (!lider || lider.puan <= 0) return;                                       // kimsenin puanı yok
@@ -181,6 +185,8 @@ function muzikDurumGonder() {
     const hepsi = (muzikListe[id] || []).filter(x => !x.mars);
     ulkeler[id] = hepsi.map(x => ({ ad: dosyaAdi(x.yol), hazir: muzikTampon.has(x.yol), bozuk: bozuk.get(x.yol) || null }));
   }
-  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 2, ulkeler, calan: oynatici ? { id: oynatici.id, ad: dosyaAdi(oynatici.yol) } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
+  const sirali = typeof seritler !== 'undefined' ? [...seritler].sort((a, b) => b.puan - a.puan) : [];
+  const lider = sirali[0] && sirali[0].puan > 0 ? sirali.filter(x => x.puan === sirali[0].puan).map(x => x.id) : [];
+  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 3, kimlik: OYUN_KIMLIK, sessiz: MUZIK_SESSIZ, obs: /OBS/i.test(navigator.userAgent) || !!window.obsstudio, lider, ulkeler, calan: oynatici ? { id: oynatici.id, ad: dosyaAdi(oynatici.yol) } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
 }
 setInterval(muzikDurumGonder, 3000);

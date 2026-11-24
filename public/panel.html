@@ -155,7 +155,7 @@
     <div class="kart">
       <h2>Oyun</h2>
       <div class="satir">
-        <a href="/oyun.html?arka" target="_blank">Oyunu aç (önizleme)</a>
+        <a href="/oyun.html?arka&sessiz" target="_blank">Oyunu aç (önizleme, sessiz)</a>
         <span class="ipucu">OBS adresi: <code>http://localhost:7777/oyun.html</code> — 1080 × 1920</span>
       </div>
     </div>
@@ -286,7 +286,12 @@ function muzikGoster(m) {
   }
   muzikSon = Date.now();
   const kac = Object.values(m.ulkeler || {}).reduce((t, l) => t + l.length, 0);
-  $('#muzikCalan').innerHTML = (m.calan ? '▶ Şimdi çalan: <b>' + esc(ULKE_AD[m.calan.id] || m.calan.id) + '</b> – ' + esc(m.calan.ad) : 'Şu an müzik çalmıyor (kimsenin puanı yoksa ya da berabereyse normal).')
+  const acik = (m.oyunlar || []).filter(o => !o.sessiz);
+  const uyari = acik.length > 1
+    ? '<div style="color:#ff8a8a;font-weight:700;margin-bottom:6px">⚠️ Oyun sayfası şu an ' + acik.length + ' yerde açık ve hepsi müzik çalıyor: şarkılar üst üste biniyor, karışık duyuluyor. OBS dışındaki oyun pencerelerini/sekmelerini kapat (önizleme için paneldeki sessiz linki kullan).</div>' : '';
+  const liderAd = (m.lider || []).map(id => ULKE_AD[id] || id).join(' = ');
+  const uyumsuz = m.calan && m.lider && m.lider.length && !m.lider.includes(m.calan.id);
+  $('#muzikCalan').innerHTML = uyari + (liderAd ? '🏁 Birinci: <b>' + esc(liderAd) + '</b>' + (uyumsuz ? ' <span style="color:#ff8a8a">(çalan şarkı başka ülkenin!)</span>' : '') + '<br>' : '') + (m.calan ? '▶ Şimdi çalan: <b>' + esc(ULKE_AD[m.calan.id] || m.calan.id) + '</b> – ' + esc(m.calan.ad) : 'Şu an müzik çalmıyor (kimsenin puanı yoksa ya da berabereyse normal).')
     + ' · Toplam ' + kac + ' şarkı' + (m.sesDurum && m.sesDurum !== 'running' ? ' · <span style="color:#ff8a8a">Ses kapalı (' + esc(m.sesDurum) + '): OBS\'te kaynağın "Sesi OBS ile kontrol et" ayarını kontrol et</span>' : '');
   $('#muzikUlkeler').innerHTML = Object.entries(m.ulkeler || {}).map(([id, l]) => '<div class="mz-satir"><span class="mz-ulke">' + esc(ULKE_AD[id] || id) + ' (' + l.length + ')</span>'
     + (l.length ? l.map(x => {
