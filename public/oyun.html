@@ -74,7 +74,9 @@ const KOSU_KARE_HZ = 60;
 let kosuAdim = 0, kosuSaat = 0;
 const AVATAR_BOY = 23;                         // profil resmi yarıçapı (piksel). Büyük sayı = büyük resim
 const HAYVAN_YAZI = 'kanalskor';               // hayvanların gövdesine yazılan kanal adı ('' = yazı yok)
-const HAYVAN_YAZI_BOY = 0.15;                  // yazı boyu (hayvan yüksekliğine göre)
+const HAYVAN_YAZI_BOY = 0.3;                   // yazı yüksekliği (hayvan yüksekliğine göre)
+const HAYVAN_YAZI_EN = 1.25;                   // yazıyı yatayda genişletme (1 = normal)
+const HAYVAN_YAZI_BANT = 0.5;                  // yazının arkasındaki koyu bant (0 = yok, 1 = tam kapalı)
 const AVATAR_GOSTER = false;                  // false = hediye gönderenin profil fotoğrafı ekranda uçmaz (sayım ve ritim aynen sürer)
 const AVATAR_SURE = 220;                       // profil resminin hayvana uçma süresi (ms). Küçük sayı = daha hızlı
 const AVATAR_ARALIK = 120;                     // art arda gelen resimler arası bekleme (ms). Küçük sayı = daha sık
@@ -768,11 +770,14 @@ function kare(simdi) {
     if (g.halka) halkaCiz(burun - dw * 0.42, y, dw * 0.78, SERIT_H * 0.96, g.halka);
     if (g.kontrastli) { const sut = m.sutun || m.kare; cx.drawImage(g.kontrastli, (fr % sut) * g.kw, Math.floor(fr / sut) * g.kh, g.kw, g.kh, ox - bw / 2, y - bh / 2 + SERIT_H * 0.02, bw, bh); }
     else if (g.img.complete && g.img.naturalWidth) cx.drawImage(g.img, (fr % (m.sutun || m.kare)) * m.w, Math.floor(fr / (m.sutun || m.kare)) * m.h, m.w, m.h, ox - bw / 2, y - bh / 2 + SERIT_H * 0.02, bw, bh);
-    if (HAYVAN_YAZI) {   // referanstaki gibi: hayvanın gövdesinde küçük kanal adı
-      cx.save(); cx.font = `800 ${Math.round(bh * HAYVAN_YAZI_BOY)}px "Segoe UI", system-ui, sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
-      const tx = ox + bw * 0.04, ty = y + SERIT_H * 0.02;
-      cx.lineWidth = 3; cx.strokeStyle = 'rgba(0,0,0,.45)'; cx.strokeText(HAYVAN_YAZI, tx, ty);
-      cx.fillStyle = 'rgba(255,255,255,.92)'; cx.fillText(HAYVAN_YAZI, tx, ty); cx.restore();
+    if (HAYVAN_YAZI) {   // referanstaki gibi: hayvanın gövdesinde kanal adı (büyük, kalın, gövdeyi kaplar)
+      cx.save(); cx.font = `900 ${Math.round(bh * HAYVAN_YAZI_BOY)}px "Segoe UI Black", "Segoe UI", system-ui, sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      const tx = ox + bw * 0.03, ty = y + SERIT_H * 0.03;
+      cx.translate(tx, ty); cx.scale(HAYVAN_YAZI_EN, 1);   // yatayda genişlet
+      const yw = cx.measureText(HAYVAN_YAZI).width, yh = bh * HAYVAN_YAZI_BOY;
+      if (HAYVAN_YAZI_BANT > 0) { cx.fillStyle = `rgba(10,12,20,${HAYVAN_YAZI_BANT})`; yuvarlak(cx, -yw / 2 - 8, -yh * 0.62, yw + 16, yh * 1.24, yh * 0.35); cx.fill(); }
+      cx.lineJoin = 'round'; cx.lineWidth = Math.max(4, yh * 0.18); cx.strokeStyle = 'rgba(0,0,0,.7)'; cx.strokeText(HAYVAN_YAZI, 0, 0);
+      cx.fillStyle = '#fff'; cx.fillText(HAYVAN_YAZI, 0, 0); cx.restore();
     }
   }
   if (CANLI) parcaCiz(dt);
