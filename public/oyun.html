@@ -81,7 +81,11 @@ const TIK_EN_AZ = 38;                          // iki tık sesi arası en az (ms
 let sonTikZamani = -1e9;
 const TOPLU_EGRI = 0.8;                        // 0 = hep aynı hız, 0.9'a yaklaştıkça başta/sonda daha yavaş, ortada daha hızlı
 const CIZGI_HIZ = 240;                         // şerit çizgilerinin sola akma hızı (piksel/saniye). 0 = durur
-const LIDER_BUYUME = 0.22;                     // lider her hit aldığında ne kadar büyür (0.22 = %22)
+// SADE = true: hediyeye bağlı tekrar eden tepkiler kapalı (TikTok "tekrarlayan tetikleyici" uyarısı için):
+// hediye anında hayvan sıçramaz/büyümez, seri hediyede parlama halkası çıkmaz, şeritlerde hediye ikonu gösterilmez.
+// Hediye yine sayılır, avatar yine uçar, hayvan yine ilerler. false = eski hareketli hali.
+const SADE = true;
+const LIDER_BUYUME = 0.22;                    // lider her hit aldığında ne kadar büyür (0.22 = %22)
 const LIDER_BUYUME_MAX = 0.32;                 // art arda hitlerde en fazla büyüme
 let SES_KAYMA = 0;                              // tık sesi kayması (ms). Panelden 'Ses senkronu' ile ayarlanır (+ = ses daha geç)
 let SES_SEVIYE = 1.4;                          // tık sesi seviyesi (0 = kapalı, 1 = %100, 2 = %200). Panelden "Yayın sesi" ile değişir
@@ -395,12 +399,13 @@ function ikonParlaklik() {
   return p;
 }
 function rozetCiz(s, yMerkez) {
-  const x = EKRAN.x + 18, h = 30, IK = 15;   // IK: hediye ikonu boyu (px) — referans gibi küçücük
+  const x = EKRAN.x + 18, h = 30, IK = SADE ? -6 : 15;   // IK: hediye ikonu boyu (px) — sade modda ikon yok, sadece sayı
   cx.font = '700 19px "Segoe UI", system-ui, sans-serif';
   const metin = String(s.puan);
   const w = 7 + IK + 6 + cx.measureText(metin).width + 11;
   cx.fillStyle = 'rgba(14,22,38,.92)'; cx.strokeStyle = (typeof CANLI !== 'undefined' && CANLI && RENK[s.id]) ? RENK[s.id] + '99' : '#22324d'; cx.lineWidth = 2;
   yuvarlak(cx, x, yMerkez - h / 2, w, h, 9); cx.fill(); cx.stroke();
+  if (SADE) { cx.fillStyle = '#fff'; cx.textBaseline = 'middle'; cx.fillText(metin, x + 7 + IK + 6, yMerkez + 1); return x + w; }
   // TikTok'un kendi hediye ikonları (public/ikon/<şerit>.png): Lazer Çubuğu, GG, Gül, TikTok, Dondurma
   const ik = resim('ikon/' + s.id + '.png');
   const a = IKON_EN_AZ + (1 - IKON_EN_AZ) * ikonParlaklik();
@@ -786,12 +791,13 @@ function kare(simdi) {
     if (!g || !sat) { if (u.sayar && bekleyen[u.id] > 0) bekleyen[u.id]--; ucanlar.splice(i, 1); continue; }
     const p = (simdi - u.bas) / u.sure; if (p < 0) continue;
     if (p >= 1) {
-      ucanlar.splice(i, 1); g.atil = Math.min(28, g.atil + 14); if (g.hedefSira === 0) g.buyu = Math.min(LIDER_BUYUME_MAX, g.buyu + LIDER_BUYUME);
+      ucanlar.splice(i, 1);
+      if (!SADE) { g.atil = Math.min(28, g.atil + 14); if (g.hedefSira === 0) g.buyu = Math.min(LIDER_BUYUME_MAX, g.buyu + LIDER_BUYUME); }   // sade modda hediye anında sıçrama/büyüme yok
       // değdi: sayaç 1 artar, hayvan bir tık ilerler
       if (u.sayar && bekleyen[u.id] > 0) { bekleyen[u.id]--; sat.s.puan++; hedefleriHesapla(); }
       // değme anındaki kıvılcım patlaması ve uçan "+1" kaldırıldı (TikTok "tekrarlayan tetikleyici" ihlali; referans kadar sade)
       g.son = g.son.filter(t => simdi - t < 1500); g.son.push(simdi);
-      if (g.son.length >= 3) g.halka = simdi;   // seri gelirse parlama halkası
+      if (g.son.length >= 3 && !SADE) g.halka = simdi;   // seri gelirse parlama halkası (sade modda yok)
       continue;
     }
     const e = p < .25 ? 0 : (p - .25) / .75, ee = e * e * (3 - 2 * e);
