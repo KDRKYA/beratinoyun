@@ -319,19 +319,19 @@ function avatarCiz(x, y, r, foto, alfa) {
 }
 const IKON_SOLUK = 0.55;   // hediye ikonunun opaklığı (1 = tam canlı, 0 = görünmez). Soluk: göze batmasın
 function rozetCiz(s, yMerkez) {
-  const x = EKRAN.x + 22, h = 46, IK = 34;   // IK: hediye ikonu boyu (px) — görünür ama göze batmayan boy
-  cx.font = '700 26px "Segoe UI", system-ui, sans-serif';
+  const x = EKRAN.x + 18, h = 30, IK = 15;   // IK: hediye ikonu boyu (px) — referans gibi küçücük
+  cx.font = '700 19px "Segoe UI", system-ui, sans-serif';
   const metin = String(s.puan);
-  const w = 10 + IK + 10 + cx.measureText(metin).width + 18;
+  const w = 7 + IK + 6 + cx.measureText(metin).width + 11;
   cx.fillStyle = 'rgba(14,22,38,.92)'; cx.strokeStyle = (typeof CANLI !== 'undefined' && CANLI && RENK[s.id]) ? RENK[s.id] + '99' : '#22324d'; cx.lineWidth = 2;
-  yuvarlak(cx, x, yMerkez - h / 2, w, h, 14); cx.fill(); cx.stroke();
+  yuvarlak(cx, x, yMerkez - h / 2, w, h, 9); cx.fill(); cx.stroke();
   // TikTok'un kendi hediye ikonları (public/ikon/<şerit>.png): Lazer Çubuğu, GG, Gül, TikTok, Dondurma
   const ik = resim('ikon/' + s.id + '.png');
-  if (ik && ik.complete && ik.naturalWidth) { cx.save(); cx.globalAlpha = IKON_SOLUK; cx.filter = 'saturate(0.6)'; cx.drawImage(ik, x + 10, yMerkez - IK / 2, IK, IK); cx.restore(); }
-  else if (s.id === 'suriye') { cx.font = '900 20px "Segoe UI", sans-serif'; cx.textBaseline = 'middle'; cx.fillStyle = '#ffd23f'; cx.fillText('GG', x + 16, yMerkez + 1); }
-  else { cx.font = '26px "Segoe UI Emoji"'; cx.textBaseline = 'middle'; cx.fillText({ kurdistan: '🌹', turkiye: '🎵', azerbaycan: '🍦', afghanistan: '🪄' }[s.id] || '🎁', x + 14, yMerkez + 1); }
-  cx.font = '700 26px "Segoe UI", system-ui, sans-serif'; cx.fillStyle = '#fff'; cx.textBaseline = 'middle';
-  cx.fillText(metin, x + 10 + IK + 10, yMerkez + 1);
+  if (ik && ik.complete && ik.naturalWidth) { cx.save(); cx.globalAlpha = IKON_SOLUK; cx.filter = 'saturate(0.6)'; cx.drawImage(ik, x + 7, yMerkez - IK / 2, IK, IK); cx.restore(); }
+  else if (s.id === 'suriye') { cx.font = '900 9px "Segoe UI", sans-serif'; cx.textBaseline = 'middle'; cx.fillStyle = '#ffd23f'; cx.globalAlpha = IKON_SOLUK; cx.fillText('GG', x + 8, yMerkez + 1); cx.globalAlpha = 1; }
+  else { cx.font = '12px "Segoe UI Emoji"'; cx.textBaseline = 'middle'; cx.globalAlpha = IKON_SOLUK; cx.fillText({ kurdistan: '🌹', turkiye: '🎵', azerbaycan: '🍦', afghanistan: '🪄' }[s.id] || '🎁', x + 8, yMerkez + 1); cx.globalAlpha = 1; }
+  cx.font = '700 19px "Segoe UI", system-ui, sans-serif'; cx.fillStyle = '#fff'; cx.textBaseline = 'middle';
+  cx.fillText(metin, x + 7 + IK + 6, yMerkez + 1);
   return x + w;
 }
 function halkaCiz(x, y, w, h, t) {
@@ -585,11 +585,7 @@ function kare(simdi) {
       ucanlar.splice(i, 1); g.atil = Math.min(28, g.atil + 14); if (g.hedefSira === 0) g.buyu = Math.min(LIDER_BUYUME_MAX, g.buyu + LIDER_BUYUME);
       // değdi: sayaç 1 artar, hayvan bir tık ilerler
       if (u.sayar && bekleyen[u.id] > 0) { bekleyen[u.id]--; sat.s.puan++; hedefleriHesapla(); }
-      if (CANLI) {   // değme anı: renkli kıvılcım patlaması + uçan "+1"
-        const renk = RENK[u.id] || '#8fd0f5', vx = g.x - (g.meta.w * (SERIT_H * HAYVAN_BOY) / g.meta.h) * 0.25;
-        parcaEkle(vx, sat.y, renk, 12, 520, 5, 520); parcaEkle(vx, sat.y, '#fff6c8', 6, 380, 3.5, 420);
-        if (yazilar.length < 25) yazilar.push({ x: vx, y: sat.y - SERIT_H * .2, yas: 0, renk });
-      }
+      // değme anındaki kıvılcım patlaması ve uçan "+1" kaldırıldı (TikTok "tekrarlayan tetikleyici" ihlali; referans kadar sade)
       g.son = g.son.filter(t => simdi - t < 1500); g.son.push(simdi);
       if (g.son.length >= 3) g.halka = simdi;   // seri gelirse parlama halkası
       continue;
