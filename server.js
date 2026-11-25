@@ -68,8 +68,11 @@ function sesAyar() { return { ...SES_VARSAYILAN, ...(durum.ses || {}) }; }
 const YER_SINIR = { odaParlak: [0.3, 1.6], hayvanParlak: [0.3, 1.6], cizgiParlak: [0.1, 1.8], haleParlak: [0, 2.5], ust: [0.6, 1.5], videoX: [-1, 1], oyunX: [-1, 1], oyunY: [-1, 1], videoY: [-1, 1], videoZoom: [1, 2.5], oyunSol: [0, 0.4], oyunSag: [0, 0.4], oyunUst: [0, 0.4], oyunAlt: [0, 0.4], videoKirp: [0, 0.4], videoAlt: [0, 0.4], videoSol: [0, 0.4], videoSag: [0, 0.4] };
 const YER_VARSAYILAN = { odaParlak: 1, hayvanParlak: 1, cizgiParlak: 1, haleParlak: 1, ust: 1, videoX: 0, oyunX: 0, oyunY: 0, videoY: 0, videoZoom: 1, oyunSol: 0, oyunSag: 0, oyunUst: 0, oyunAlt: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 };
 function yerAyar() { return { ...YER_VARSAYILAN, ...(durum.yer || {}) }; }
+// Alt video: bas = baştan atlanan saniye, son = sondan atlanan saniye (panelden ayarlanır)
+const VIDEO_VARSAYILAN = { bas: 15, son: 0 };
+function videoAyar() { return { ...VIDEO_VARSAYILAN, ...(durum.video || {}) }; }
 function durumOzet() {
-  return { tip: 'durum', seritler: durum.seritler, kullanici: durum.kullanici, baglanti: baglantiDurum, sonHediyeler, ses: sesAyar(), yer: yerAyar() };
+  return { tip: 'durum', seritler: durum.seritler, kullanici: durum.kullanici, baglanti: baglantiDurum, sonHediyeler, ses: sesAyar(), yer: yerAyar(), video: videoAyar() };
 }
 
 // ---------- Puan ----------
@@ -242,6 +245,13 @@ function istekKaldir(no) {
 function komut(m) {
   switch (m.tip) {
     case 'istek': istekEkle(m.url); break;
+    case 'video': {   // alt videonun başından/sonundan kesilecek saniye
+      const v = videoAyar();
+      for (const k of ['bas', 'son']) if (m[k] !== undefined && Number.isFinite(Number(m[k]))) v[k] = Math.max(0, Math.min(36000, Math.round(Number(m[k]))));
+      durum.video = v; kaydet();
+      yayinla({ tip: 'video', video: v });
+      break;
+    }
     case 'istekSil': istekKaldir(Number(m.no)); break;
     case 'arti': puanEkle(m.serit, Math.trunc(Number(m.miktar) || 1), 'panel', { id: 'panel', ad: 'Panel', foto: '' }); break;
     case 'sifirla': {

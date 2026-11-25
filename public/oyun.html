@@ -60,7 +60,7 @@ const tvFoto = SAHNE ? Object.assign(new Image(), { src: SAHNE.dosya })
   : TV_STIL === 'foto' ? Object.assign(new Image(), { src: FOTO.dosya }) : null;
 // Alt alan videosu: public/video/ içindeki dosya, sessiz ve döngüde. '' yaparsan alt alan şeffaf kalır (OBS'te kendi videonu koyarsın)
 const VIDEO_DOSYA = 'video/gta5-mega-ramp.mp4';
-const VIDEO_BAS = 15;   // alttaki videonun ilk kaç saniyesi atlansın (başa sarınca da buradan başlar). 0 = baştan
+let VIDEO_BAS = 15, VIDEO_SON = 0;   // alttaki videonun başından / sonundan kaç saniye atlansın. Panelden "Alt video" ile ayarlanır
 const EKRAN = SAHNE ? { ...SAHNE.ekran }
   : TV_STIL === 'foto'
   ? { x: TV.x + FOTO.ekran.x * FOTO_OLCEK, y: TV.y + FOTO.ekran.y * FOTO_OLCEK, w: FOTO.ekran.w * FOTO_OLCEK, h: FOTO.ekran.h * FOTO_OLCEK, r: FOTO.ekran.r * FOTO_OLCEK }
@@ -423,10 +423,24 @@ function halkaCiz(x, y, w, h, t) {
 }
 
 // ---------- Alt alan: oyun videosu (sessiz, döngü, alanı kırparak doldurur) ----------
-const altVideo = VIDEO_DOSYA ? Object.assign(document.createElement('video'), { src: VIDEO_DOSYA, muted: true, loop: !VIDEO_BAS, playsInline: true, autoplay: true, preload: 'auto' }) : null;
-if (altVideo && VIDEO_BAS) {   // ilk VIDEO_BAS saniyeyi hiç gösterme: açılışta oradan başla, bitince oraya sar
-  altVideo.addEventListener('loadedmetadata', () => { if (altVideo.duration > VIDEO_BAS + 5) altVideo.currentTime = VIDEO_BAS; });
-  altVideo.addEventListener('ended', () => { altVideo.currentTime = altVideo.duration > VIDEO_BAS + 5 ? VIDEO_BAS : 0; altVideo.play().catch(() => {}); });
+const altVideo = VIDEO_DOSYA ? Object.assign(document.createElement('video'), { src: VIDEO_DOSYA, muted: true, loop: false, playsInline: true, autoplay: true, preload: 'auto' }) : null;
+// Videonun sadece [VIDEO_BAS, süre - VIDEO_SON] aralığı oynar; sona gelince VIDEO_BAS'a sarar
+function videoAralik() {
+  const d = altVideo && altVideo.duration;
+  if (!Number.isFinite(d) || d <= 0) return [0, 0];
+  let a = Math.min(VIDEO_BAS, d - 1), b = d - VIDEO_SON;
+  if (b - a < 3) { a = 0; b = d; }   // ayar videodan uzunsa kesme yapma
+  return [Math.max(0, a), b];
+}
+function videoAraligaGetir() {
+  if (!altVideo) return; const [a, b] = videoAralik(); if (!b) return;
+  if (altVideo.currentTime < a - 0.5 || altVideo.currentTime >= b - 0.05) { altVideo.currentTime = a; altVideo.play().catch(() => {}); }
+}
+function videoAyarUygula(v) { if (Number.isFinite(v.bas)) VIDEO_BAS = v.bas; if (Number.isFinite(v.son)) VIDEO_SON = v.son; videoAraligaGetir(); }
+if (altVideo) {
+  altVideo.addEventListener('loadedmetadata', videoAraligaGetir);
+  altVideo.addEventListener('timeupdate', videoAraligaGetir);
+  altVideo.addEventListener('ended', () => { altVideo.currentTime = videoAralik()[0]; altVideo.play().catch(() => {}); });
 }
 if (altVideo) { altVideo.setAttribute('playsinline', ''); altVideo.play().catch(() => {}); addEventListener('pointerdown', () => altVideo.paused && altVideo.play().catch(() => {})); }
 // Yerleşim (panelden ayarlanır): ust = üst sahnenin ölçeği, videoX = videonun yatay kaydırması (-1 sol, 0 orta, 1 sağ)
@@ -799,6 +813,7 @@ function soket() {
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.ses) sesAyarUygula(m.ses);   // panelden ses ayarı (durum ve 'ses' mesajlarında gelir)
+    if (m.video) videoAyarUygula(m.video);   // panelden alt video başı/sonu kesme
     if (m.yer) {   // panelden yerleşim
       const eskiOda = YER.odaParlak, eskiHayvan = YER.hayvanParlak;
       for (const k of Object.keys(YER)) if (Number.isFinite(m.yer[k])) YER[k] = m.yer[k];

@@ -205,7 +205,7 @@ function muzikDurumGonder() {
   }
   const sirali = typeof seritler !== 'undefined' ? [...seritler].sort((a, b) => asilPuan(b) - asilPuan(a)) : [];
   const lider = sirali[0] && asilPuan(sirali[0]) > 0 ? sirali.filter(x => asilPuan(x) === asilPuan(sirali[0])).map(x => x.id) : [];
-  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 5, kimlik: OYUN_KIMLIK, sessiz: MUZIK_SESSIZ, obs: /OBS/i.test(navigator.userAgent) || !!window.obsstudio, lider, ulkeler, calan: oynatici ? { id: oynatici.id, yol: oynatici.yol, ad: oynatici.istek ? oynatici.ad : dosyaAdi(oynatici.yol), istek: !!oynatici.istek, ...calanKonum(oynatici) } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
+  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 5, kimlik: OYUN_KIMLIK, sessiz: MUZIK_SESSIZ, obs: /OBS/i.test(navigator.userAgent) || !!window.obsstudio, lider, ulkeler, calan: oynatici ? { id: oynatici.id, yol: oynatici.yol, ad: oynatici.istek ? oynatici.ad : dosyaAdi(oynatici.yol), istek: !!oynatici.istek, ...calanKonum(oynatici) } : null, sesDurum: ses ? ses.state : 'yok', videoSure: (typeof altVideo !== 'undefined' && altVideo && Number.isFinite(altVideo.duration)) ? altVideo.duration : 0, videoKonum: (typeof altVideo !== 'undefined' && altVideo) ? altVideo.currentTime : 0, yer: typeof YER !== 'undefined' ? YER : null }));
 }
 setInterval(muzikDurumGonder, 3000);
 

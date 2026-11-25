@@ -230,6 +230,13 @@
         </div>
       </div>
     </div>
+    <div class="kart" style="margin-bottom:16px">
+      <h2>Alt video (baş / son kesme)</h2>
+      <div class="ses-satir"><span>⏮️ Baştan kes</span><button class="kucuk" data-video="bas" data-adim="-1">−</button><input type="range" id="videoBas" min="0" max="600" step="1"><button class="kucuk" data-video="bas" data-adim="1">+</button><b id="videoBasYazi">–</b></div>
+      <div class="ses-satir"><span>⏭️ Sondan kes</span><button class="kucuk" data-video="son" data-adim="-1">−</button><input type="range" id="videoSon" min="0" max="600" step="1"><button class="kucuk" data-video="son" data-adim="1">+</button><b id="videoSonYazi">–</b></div>
+      <div class="np-etiketler" style="margin-top:4px"><span class="etiket" id="videoAralikYazi">Video bilgisi bekleniyor…</span></div>
+      <div class="ipucu">Videonun sadece aradaki kısmı oynar; sona gelince kestiğin yerden yeniden başlar. Video dosyası değişmez, yayında anında uygulanır ve kaydedilir. Kaydırıcı videonun uzunluğuna göre ayarlanır; +/− ile saniye saniye ince ayar yap.</div>
+    </div>
     <div class="kart">
       <h2>Şeritler (sıralama canlı)</h2>
       <div id="seritler"></div>
@@ -456,6 +463,25 @@ document.addEventListener('input', e => { if (e.target.type === 'range') rangeDo
 setInterval(() => document.querySelectorAll('input[type=range]').forEach(rangeDolu), 400);
 function htmlYaz(sec, html) { const el = $(sec); if (el.dataset.son !== html) { el.innerHTML = html; el.dataset.son = html; } }
 setInterval(() => { if (Date.now() - muzikSon > 10000) htmlYaz('#muzikCalan', '<span style="color:#ffb86b">Oyun sayfasından müzik bilgisi gelmiyor. OBS\'te oyun kaynağına sağ tık → Yenile. Yine gelmiyorsa müzik dosyası (muzik.js) eski sürümde kalmış demektir.</span>'); }, 5000);
+// ---- Alt video baş/son kesme ----
+let videoDeger = { bas: 15, son: 0 }, videoSure = 0, videoZaman = null;
+function videoGoster(v) {
+  if (v) videoDeger = { ...videoDeger, ...v };
+  const ust = videoSure ? Math.floor(videoSure) : 600;
+  for (const k of ['bas', 'son']) {
+    const el = $('#video' + (k === 'bas' ? 'Bas' : 'Son'));
+    el.max = ust; if (document.activeElement !== el) el.value = videoDeger[k];
+    $('#video' + (k === 'bas' ? 'Bas' : 'Son') + 'Yazi').textContent = sureYaz(videoDeger[k]);
+  }
+  $('#videoAralikYazi').textContent = videoSure
+    ? '▶ Oynayan kısım: ' + sureYaz(videoDeger.bas) + ' – ' + sureYaz(videoSure - videoDeger.son) + '  (' + sureYaz(Math.max(0, videoSure - videoDeger.bas - videoDeger.son)) + ' / toplam ' + sureYaz(videoSure) + ')'
+    : 'Video uzunluğu oyun sayfasından bekleniyor…';
+}
+function videoGonder(k, v) {
+  videoDeger[k] = Math.max(0, Math.round(v)); videoGoster();
+  clearTimeout(videoZaman); videoZaman = setTimeout(() => gonder({ tip: 'video', ...videoDeger }), 120);
+}
+document.addEventListener('input', e => { if (e.target.id === 'videoBas') videoGonder('bas', +e.target.value); if (e.target.id === 'videoSon') videoGonder('son', +e.target.value); });
 // ---- İstek şarkı ----
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'istekLink') istekYolla(); });
 const ISTEK_DURUM = { indiriliyor: ['⏬', 'indiriliyor…', ''], hazir: ['⏳', 'sırada', 'hazir'], caliyor: ['▶', 'çalıyor', 'calan'], hata: ['✗', 'hata', 'bozuk'] };
@@ -565,6 +591,8 @@ function soket() {
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.ses) sesGoster(m.ses);
+    if (m.video) videoGoster(m.video);
+    if (m.tip === 'muzikDurum' && m.videoSure && Math.abs(m.videoSure - videoSure) > 0.5) { videoSure = m.videoSure; videoGoster(); }
     if (m.yer && m.tip !== 'muzikDurum') { yerSunucuEski = YER_ALANLAR.some(k => !(k in m.yer)); yerUyariGoster(); yerGoster(m.yer); }
     if (m.tip === 'muzikDurum') { muzikGoster(m); return; }
     if (m.tip === 'istekler') { istekGoster(m.liste); return; }
@@ -577,6 +605,7 @@ function soket() {
 document.addEventListener('click', e => {
   const t = e.target;
   if (t.id === 'istekBtn') return istekYolla();
+  if (t.dataset.video) return videoGonder(t.dataset.video, (videoDeger[t.dataset.video] || 0) + Number(t.dataset.adim));
   if (t.dataset.istekSil) return gonder({ tip: 'istekSil', no: Number(t.dataset.istekSil) });
   if (t.dataset.kaldirAd) {
     if (confirm('"' + t.dataset.kaldirAd + '" şarkısı ' + (ULKE_AD[t.dataset.kaldirSerit] || t.dataset.kaldirSerit) + ' listesinden kaldırılsın mı?\n(Silinmez, o ülkenin "eski" klasörüne taşınır.)'))
