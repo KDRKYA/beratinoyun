@@ -373,6 +373,8 @@ wss.on('connection', (ws, req) => {
       // kendi şarkısını bildirince panel sürekli değişiyordu. Öncelik: sessiz olmayan > OBS > en eski açılan.
       const ana = [...oyunSayfalari.values()].sort((a, b) => (a.sessiz - b.sessiz) || (b.obs - a.obs) || (a.ilk - b.ilk))[0];
       if (ana.durum !== m) return;   // bu sayfa ana değil: paneli değiştirme
+      // Herkes aynı müziği duysun: ana sayfanın çaldığı şarkı ve saniyesi diğer tüm oyun sayfalarına gider, onlar da aynısını çalar
+      yayinla({ tip: 'muzikSenk', ana: m.kimlik, calan: m.calan || null }, 'oyun');
       const oyunlar = [...oyunSayfalari.values()].map(({ durum, ...v }) => v);
       sonMuzikDurum = { ...m, zaman: Date.now(), oyunlar };
       return yayinla(sonMuzikDurum, 'panel');
@@ -395,6 +397,7 @@ wss.on('connection', (ws, req) => {
   ws.send(JSON.stringify(istekOzet()));
   ws.on('close', () => {
     istemciler.delete(ws);
+    if (ws.oyunKimlik) oyunSayfalari.delete(String(ws.oyunKimlik));   // kapanan sayfa hemen ana olmaktan çıksın
     for (const i of istekler.filter(x => x.calan === ws)) istekKaldir(i.no);   // istek çalan oyun sayfası kapandı/yenilendi
   });
 });

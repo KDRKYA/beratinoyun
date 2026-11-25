@@ -815,6 +815,7 @@ function soket() {
     else if (m.tip === 'hediye') { hediyeGeldi(m); teshis('hediye'); }
     else if (m.tip === 'muzikYenile' && typeof muzikHemenYenile === 'function') muzikHemenYenile();   // panelden şarkı kaldırıldı
     else if (m.tip === 'istekler' && typeof istekGuncelle === 'function') istekGuncelle(m.liste);      // panelden istek şarkı
+    else if (m.tip === 'muzikSenk' && typeof muzikSenkAl === 'function') muzikSenkAl(m);             // herkes aynı müziği duysun
   };
   ws.onclose = () => setTimeout(soket, 1500);
 }
