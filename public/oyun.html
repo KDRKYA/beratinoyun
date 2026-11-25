@@ -40,7 +40,7 @@ const W = 1080, H = 1920;
 //          'genis' = ilk büyük düz TV fotoğrafı    (public/tv/genis-tv.jpg)
 //          'foto'  = gerçek tüplü TV fotoğrafı     (public/tv/eski-tv.png)
 //          'cizim' = eski çizilmiş TV              (geri dönmek için buraya o adı yaz)
-const TV_STIL = 'oda';
+const TV_STIL = 'foto';   // önceki: 'oda'
 const SAHNELER = {   // tam genişlik oda fotoğrafları: araclar/oda_tv_hazirla.py, araclar/genis_tv_hazirla.py
   oda:   { dosya: 'tv/oda-tv.jpg',   w: 1080, h: 896, ekran: { x: 50, y: 185, w: 980, h: 551, r: 3 },
            lamba: { x1: 673, y1: 134, x2: 700, y2: 183 },   // TV'nin arkasındaki lambader ışık çubuğu
@@ -184,13 +184,16 @@ const EKRAN_FILTRE = `contrast(${EKRAN_KONTRAST}) saturate(${EKRAN_DOYGUNLUK}) b
 // Hayvan görselleri ekranda en fazla ~150 px boyunda çiziliyor ama kaynak kareler 220-245 px.
 // Kopya %60 boyda tutulur: bellek ~3 kat azalır, her karede çizim hızlanır (yayında donmayı azaltır), görüntü farkı yok.
 const HAYVAN_KOPYA_OLCEK = 0.6;
+// Hayvanların üstündeki bayrak desenini ne kadar belli etsin: 1 = tam renkli bayrak, 0 = renksiz.
+// Ortası: bayrak andırır ama ilk bakışta "bayrak" diye bağırmaz. HAYVAN_SICAK: renkleri biraz sıcak/vintage tona çeker (eski TV havası)
+const BAYRAK_BELLI = 0.3, HAYVAN_SICAK = 0.28, DESEN_KONTRAST = 0.78;   // DESEN_KONTRAST < 1: ay-yıldız, güneş gibi desenler daha silik
 function hayvanKopya(g, hedef = null) {   // kontrastlı, parlaklığı ayarlı ve küçültülmüş sprite kopyası
   const m = g.meta, sut = m.sutun || m.kare;
   const fw = Math.round(m.w * HAYVAN_KOPYA_OLCEK), fh = Math.round(m.h * HAYVAN_KOPYA_OLCEK);   // kare boyu tam sayı: kareler birbirine taşmaz
   const satir = Math.round(g.img.naturalHeight / m.h);
   const c = hedef || document.createElement('canvas'); c.width = fw * sut; c.height = fh * satir;
   const k = c.getContext('2d'); k.clearRect(0, 0, c.width, c.height); k.imageSmoothingQuality = 'high';
-  k.filter = EKRAN_FILTRE + (YER.hayvanParlak !== 1 ? ` brightness(${YER.hayvanParlak})` : '');
+  k.filter = EKRAN_FILTRE + ` saturate(${BAYRAK_BELLI}) sepia(${HAYVAN_SICAK}) contrast(${DESEN_KONTRAST})` + (YER.hayvanParlak !== 1 ? ` brightness(${YER.hayvanParlak})` : '');
   k.drawImage(g.img, 0, 0, m.w * sut, m.h * satir, 0, 0, c.width, c.height);
   g.kw = fw; g.kh = fh; return c;
 }
@@ -473,7 +476,8 @@ function altVideoCiz() {
 }
 // ---------- Canlılık efektleri: renkli şerit ışıkları, iz parçacıkları, vuruş patlaması, +1, lider tacı ----------
 const CANLI = true;                            // false = efektler kapalı (sade görünüm)
-const RENK = { turkiye: '#ff2a4f', kurdistan: '#ffd21f', suriye: '#2fe08a', afghanistan: '#ff7a2f', azerbaycan: '#33b9ff' };
+// Şerit renkleri: bayrakları hafifçe andıran ama doğrudan bayrak rengi olmayan yumuşak tonlar (önceki: canlı bayrak renkleri)
+const RENK = { turkiye: '#e86a7d', kurdistan: '#e8c06a', suriye: '#6fcfa6', afghanistan: '#e89a6a', azerbaycan: '#6aa8e8' };
 const parcalar = [], yazilar = [];
 function renkRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
 function parcaEkle(x, y, renk, n, hiz, boy, omur, yon = 0, yayilma = Math.PI * 2) {
