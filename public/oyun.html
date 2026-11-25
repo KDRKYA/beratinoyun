@@ -349,6 +349,40 @@ function hedefleriHesapla() {
   });
 }
 
+// ---------- Yarış olayları: efektler her hediyede değil, yarışta bir şey olunca çıkar ----------
+// Geçiş (bir hayvan diğerini geçti), liderlik (birinci oldu), rekor sayı (100, 250, 500...). Kafa kafaya yarış: canliArka çizer.
+const REKORLAR = [50, 100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 30000, 50000];
+const olaySon = {};   // id -> son geçiş efekti zamanı (berabere gidip gelirken üst üste patlamasın)
+function siraHaritasi() { const h = {}; for (const [id, g] of Object.entries(gorsel)) h[id] = g.hedefSira; return h; }
+function yarisOlayi(id, once, eski, yeni, y, g, simdi) {
+  if (!CANLI || !g.meta) return;
+  const renk = RENK[id] || '#8fd0f5';
+  const dw = g.meta.w * (SERIT_H * HAYVAN_BOY) / g.meta.h, vx = g.x - dw * 0.25;
+  const rekor = REKORLAR.find(r => eski < r && yeni >= r);
+  if (rekor) {   // rekor sayı: konfeti + büyük sayı
+    const renkler = ['#ffd75a', '#ff6b9a', '#6fe0ff', '#9dff8a', '#ffffff', renk];
+    for (const r of renkler) parcaEkle(vx, y, r, 10, 760, 6, 1300);
+    if (yazilar.length < 25) yazilar.push({ x: vx, y: y - SERIT_H * .25, yas: 0, renk: '#ffd75a', metin: String(rekor), boy: 70, omur: 1600 });
+    g.halka = simdi; g.buyu = LIDER_BUYUME_MAX;
+  }
+  if (g.hedefSira < once[id] && !(simdi - (olaySon[id] || 0) < 1500)) {   // birini geçti
+    olaySon[id] = simdi; g.halka = simdi; g.atil = 22;
+    if (g.hedefSira === 0) {   // birinci oldu: altın patlama, büyüme
+      g.buyu = LIDER_BUYUME_MAX;
+      parcaEkle(vx, y, '#ffd75a', 22, 700, 6, 900); parcaEkle(vx, y, '#fff3c4', 12, 480, 4, 700);
+    } else {
+      parcaEkle(vx, y, renk, 16, 560, 5, 650); parcaEkle(vx, y, '#ffffff', 6, 380, 3.5, 450);
+    }
+  }
+}
+// Kafa kafaya: sıralamada yan yana iki ülke arasındaki fark çok azsa ikisinin şeridi gerilimle yanıp söner
+function kafaKafaya() {
+  const s = [...seritler].filter(x => x.puan > 0).sort((a, b) => b.puan - a.puan), k = new Set();
+  const esik = Math.max(2, Math.round((s[0] ? s[0].puan : 0) * 0.015));
+  for (let i = 0; i + 1 < s.length; i++) if (s[i].puan - s[i + 1].puan <= esik) { k.add(s[i].id); k.add(s[i + 1].id); }
+  return k;
+}
+
 // ---------- Hediye efekti ----------
 // Toplu hediye (+10, +50, TikTok kombosu) tek tek jeton gibi oynar: her biri ayrı avatar + ayrı tap-tik,
 // ve sayaç/konum her avatar hayvana değdikçe 1 artar. bekleyen = henüz hayvana ulaşmamış avatar sayısı.
@@ -502,13 +536,13 @@ function parcaCiz(dt) {
   }
   cx.restore();
   for (let i = yazilar.length - 1; i >= 0; i--) {
-    const y = yazilar[i]; y.yas += dt; if (y.yas >= 800) { yazilar.splice(i, 1); continue; }
-    const k = y.yas / 800, b = k < .15 ? .6 + k / .15 * .5 : 1.1 - (k - .15) * .15;
+    const y = yazilar[i], omur = y.omur || 800; y.yas += dt; if (y.yas >= omur) { yazilar.splice(i, 1); continue; }
+    const k = y.yas / omur, b = k < .15 ? .6 + k / .15 * .5 : 1.1 - (k - .15) * .15, metin = y.metin || '+1';
     cx.save(); cx.globalAlpha = k < .7 ? 1 : 1 - (k - .7) / .3;
     cx.translate(y.x, y.y - k * 46); cx.scale(b, b);
-    cx.font = '900 34px "Segoe UI", system-ui, sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
-    cx.lineWidth = 6; cx.strokeStyle = 'rgba(0,0,0,.75)'; cx.strokeText('+1', 0, 0);
-    cx.fillStyle = y.renk; cx.shadowColor = y.renk; cx.shadowBlur = 16; cx.fillText('+1', 0, 0);
+    cx.font = `900 ${y.boy || 34}px "Segoe UI", system-ui, sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.lineWidth = 6; cx.strokeStyle = 'rgba(0,0,0,.75)'; cx.strokeText(metin, 0, 0);
+    cx.fillStyle = y.renk; cx.shadowColor = y.renk; cx.shadowBlur = 16; cx.fillText(metin, 0, 0);
     cx.restore();
   }
 }
@@ -523,8 +557,14 @@ function canliArka(simdi, satirlar) {
     g.addColorStop(0, `hsla(${(hue + i * 150) % 360},90%,55%,.16)`); g.addColorStop(1, 'hsla(0,0%,0%,0)');
     cx.fillStyle = g; cx.fillRect(EKRAN.x, EKRAN.y, EKRAN.w, EKRAN.h);
   }
+  const gerilim = kafaKafaya();
   for (const { s, g, y } of satirlar) {
     const [r, gg, b] = renkRgb(RENK[s.id] || '#8fd0f5'), lider = g.hedefSira === 0 && s.puan > 0;
+    if (gerilim.has(s.id)) {   // kafa kafaya: şerit hızlı nabızla yanıp söner, üst-alt kenarında parlak çizgi
+      const n = .5 + .5 * Math.sin(t * 9), ust = y - SERIT_H / 2 + 3, alt = y + SERIT_H / 2 - 3;
+      cx.fillStyle = `rgba(${r},${gg},${b},${(.05 + .09 * n) * YER.haleParlak})`; cx.fillRect(EKRAN.x, ust, EKRAN.w, alt - ust);
+      cx.fillStyle = `rgba(255,240,200,${.10 + .25 * n})`; cx.fillRect(EKRAN.x, ust, EKRAN.w, 2); cx.fillRect(EKRAN.x, alt - 2, EKRAN.w, 2);
+    }
     const nabiz = .5 + .5 * Math.sin(t * 4 + g.sira);
     const a = Math.min(1, ((lider ? .26 : .12) + nabiz * .05) * YER.haleParlak);   // panelden 'Elips ışığı' ile ayarlanır
     const x1 = Math.min(EKRAN.x + EKRAN.w, g.x + 220);
@@ -794,7 +834,11 @@ function kare(simdi) {
       ucanlar.splice(i, 1);
       if (!SADE) { g.atil = Math.min(28, g.atil + 14); if (g.hedefSira === 0) g.buyu = Math.min(LIDER_BUYUME_MAX, g.buyu + LIDER_BUYUME); }   // sade modda hediye anında sıçrama/büyüme yok
       // değdi: sayaç 1 artar, hayvan bir tık ilerler
-      if (u.sayar && bekleyen[u.id] > 0) { bekleyen[u.id]--; sat.s.puan++; hedefleriHesapla(); }
+      if (u.sayar && bekleyen[u.id] > 0) {
+        bekleyen[u.id]--; const once = siraHaritasi(), eski = sat.s.puan;
+        sat.s.puan++; hedefleriHesapla();
+        yarisOlayi(u.id, once, eski, sat.s.puan, sat.y, g, simdi);   // efekt hediyeye değil, yarıştaki olaya bağlı
+      }
       // değme anındaki kıvılcım patlaması ve uçan "+1" kaldırıldı (TikTok "tekrarlayan tetikleyici" ihlali; referans kadar sade)
       g.son = g.son.filter(t => simdi - t < 1500); g.son.push(simdi);
       if (g.son.length >= 3 && !SADE) g.halka = simdi;   // seri gelirse parlama halkası (sade modda yok)
