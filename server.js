@@ -209,9 +209,12 @@ function istekEkle(url) {
   const i = { no: ++istekNo, url, baslik: url, durum: 'indiriliyor' };
   istekler.push(i); istekYayinla();
   fs.mkdirSync(ISTEK_KLASOR, { recursive: true });
+  // şarkı adı ekrana değil dosyaya yazdırılır: Windows konsolu Türkçe/Kürtçe harfleri bozuyordu ("SOF�")
+  const bilgi = path.join(ISTEK_KLASOR, 'bilgi-' + i.no + '.txt');
   ytdlpCalistir(['--no-playlist', '--no-warnings', '--no-progress', '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',   // webm (opus): OBS'in tarayıcısı da kesin çalar
     '--match-filter', 'duration<=' + ISTEK_EN_UZUN, '-o', path.join(ISTEK_KLASOR, '%(id)s.%(ext)s'),
-    '--no-simulate', '--print', 'after_move:%(title)s\t%(filepath)s', url], (err, out, hataYazi) => {
+    '--no-simulate', '--print-to-file', 'after_move:%(title)s\t%(filepath)s', bilgi, url], (err, out, hataYazi) => {
+    try { out = fs.readFileSync(bilgi, 'utf8'); fs.unlink(bilgi, () => {}); } catch {}
     if (!istekler.includes(i)) return;   // bu arada panelden silindi
     const satir = out.trim().split(/\r?\n/).filter(s => s.includes('\t')).pop() || '';
     const [baslik, dosya] = satir.split('\t');
@@ -376,11 +379,12 @@ wss.on('connection', (ws, req) => {
     }
     if (ws.rol === 'oyun' && m.tip === 'istekBasladi') {   // yayındaki oyun istek şarkıyı çalmaya başladı
       const i = istekler.find(x => x.no === Number(m.no));
-      if (i) { i.durum = 'caliyor'; i.calan = ws; istekYayinla(); }
+      if (i) { i.durum = 'caliyor'; i.hata = null; i.calan = ws; istekYayinla(); }
       return;
     }
     if (ws.rol === 'oyun' && m.tip === 'istekBitti') {   // bitti / lider değişti → listeden düşer; çalınamadıysa hata olarak kalır
       const i = istekler.find(x => x.no === Number(m.no));
+      if (i && i.calan && i.calan !== ws) return;   // başka bir oyun sayfası (OBS) zaten çalıyor: bu sayfanın hatası/bitişi sayılmaz
       if (i && m.hata) { i.durum = 'hata'; i.hata = 'Oyun çalamadı: ' + String(m.hata).slice(0, 120); i.calan = null; logYaz({ olay: 'istek', mesaj: 'İstek şarkı çalınamadı: ' + i.baslik + ' – ' + i.hata }); return istekYayinla(); }
       return istekKaldir(Number(m.no));
     }

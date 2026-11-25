@@ -140,7 +140,7 @@ function muzikCal(id, gecis = MUZIK_GECIS) {
   const t = ses.currentTime, d = tampon.duration;
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(MUZIK_SEVIYE, t + Math.min(0.3, gecis + 0.15));
   kaynak.start(t);
-  const o = { kaynak, g, id, yol, zamanlayici: null };
+  const o = { kaynak, g, id, yol, zamanlayici: null, bas: t, sure: d };
   // bölüm bitmeden sıradaki şarkıya yumuşak geçiş
   o.zamanlayici = setTimeout(() => { if (oynatici === o && calanSerit === id) muzikCal(id, SARKI_GECIS); }, Math.max(1, d - SARKI_GECIS) * 1000);
   oynatici = o;
@@ -156,7 +156,7 @@ function tekrarCal() {           // sıradaki şarkı yüklenemediyse çalan bö
   const kaynak = ses.createBufferSource(); kaynak.buffer = tampon;
   const g = ses.createGain(); kaynak.connect(g); g.connect(ses.destination);
   const t = ses.currentTime; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(MUZIK_SEVIYE, t + 0.3); kaynak.start(t);
-  const yeni = { kaynak, g, id, yol: o.yol, zamanlayici: null };
+  const yeni = { kaynak, g, id, yol: o.yol, zamanlayici: null, bas: t, sure: tampon.duration };
   yeni.zamanlayici = setTimeout(() => { if (oynatici === yeni) { sira[id] = (geri + 1) % l.length; muzikCal(id, SARKI_GECIS); } }, Math.max(1, tampon.duration - SARKI_GECIS) * 1000);
   oynatici = yeni;
 }
@@ -185,6 +185,12 @@ function muzikKontrol() {
 }
 setInterval(muzikKontrol, MUZIK_KONTROL);
 
+// panelde ilerleme çubuğu için: çalan şarkının kaçıncı saniyesindeyiz, toplam kaç saniye
+function calanKonum(o) {
+  if (o.audio) return { konum: o.audio.currentTime || 0, sure: Number.isFinite(o.audio.duration) ? o.audio.duration : 0 };
+  if (ses && o.sure) return { konum: Math.max(0, Math.min(o.sure, ses.currentTime - o.bas)), sure: o.sure };
+  return {};
+}
 // ---------- Panele müzik durumu: her ülkede kaç şarkı var, kaçı hazır, hangisi çalıyor ----------
 function muzikDurumGonder() {
   const ws = window.oyunSoket; if (!ws || ws.readyState !== 1) return;
@@ -195,7 +201,7 @@ function muzikDurumGonder() {
   }
   const sirali = typeof seritler !== 'undefined' ? [...seritler].sort((a, b) => asilPuan(b) - asilPuan(a)) : [];
   const lider = sirali[0] && asilPuan(sirali[0]) > 0 ? sirali.filter(x => asilPuan(x) === asilPuan(sirali[0])).map(x => x.id) : [];
-  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 5, kimlik: OYUN_KIMLIK, sessiz: MUZIK_SESSIZ, obs: /OBS/i.test(navigator.userAgent) || !!window.obsstudio, lider, ulkeler, calan: oynatici ? { id: oynatici.id, ad: oynatici.istek ? oynatici.ad : dosyaAdi(oynatici.yol), istek: !!oynatici.istek } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
+  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 5, kimlik: OYUN_KIMLIK, sessiz: MUZIK_SESSIZ, obs: /OBS/i.test(navigator.userAgent) || !!window.obsstudio, lider, ulkeler, calan: oynatici ? { id: oynatici.id, ad: oynatici.istek ? oynatici.ad : dosyaAdi(oynatici.yol), istek: !!oynatici.istek, ...calanKonum(oynatici) } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
 }
 setInterval(muzikDurumGonder, 3000);
 
@@ -232,7 +238,7 @@ function istekKontrol() {
     istekGonder({ tip: 'istekBitti', no: s.no, hata: neden });
     setTimeout(istekKontrol, 300);
   };
-  const bekle = setTimeout(() => hata('dosya 20 sn içinde açılamadı'), 20000);
+  const bekle = setTimeout(() => hata('dosya 60 sn içinde açılamadı'), 60000);
   audio.onerror = () => hata('dosya açılamadı (kod ' + (audio.error ? audio.error.code : '?') + ')');
   audio.oncanplay = () => {
     audio.oncanplay = null; clearTimeout(bekle);
