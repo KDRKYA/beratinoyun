@@ -386,15 +386,16 @@ function avatarCiz(x, y, r, foto, alfa) {
 }
 // Hediye ikonları referans videodaki gibi "nefes alır": hepsi birlikte yavaşça kararır, sonra canlı renkle parlar
 const IKON_NEFES = 5.0;     // bir kararıp-parlama turu kaç saniye (referansta ~5 sn)
-const IKON_EN_AZ = 0.18;    // en sönük anda opaklık (0 = tamamen kaybolur, 1 = hiç sönmez)
+const IKON_EN_AZ = 0.25;    // en sönük anda opaklık (0 = tamamen kaybolur, 1 = hiç sönmez)
+const IKON_BOY = 28;        // hediye ikonunun boyu (px). Görünür ama göze batmaz; yavaşça yanıp söner
 function ikonParlaklik() {
   let p = 0.5 - 0.5 * Math.cos(2 * Math.PI * (performance.now() / 1000) / IKON_NEFES);
   p = p * p * (3 - 2 * p);   // parlak ve sönük anlarda biraz dursun, geçişler yumuşak
   return p;
 }
 function rozetCiz(s, yMerkez) {
-  const x = EKRAN.x + 18, h = 30, IK = 15;   // IK: hediye ikonu boyu (px) — referans gibi küçücük
-  cx.font = '700 19px "Segoe UI", system-ui, sans-serif';
+  const x = EKRAN.x + 18, h = 40, IK = IKON_BOY;   // IK: hediye ikonu boyu (px)
+  cx.font = '700 22px "Segoe UI", system-ui, sans-serif';
   const metin = String(s.puan);
   const w = 7 + IK + 6 + cx.measureText(metin).width + 11;
   cx.fillStyle = 'rgba(14,22,38,.92)'; cx.strokeStyle = (typeof CANLI !== 'undefined' && CANLI && RENK[s.id]) ? RENK[s.id] + '99' : '#22324d'; cx.lineWidth = 2;
@@ -403,9 +404,9 @@ function rozetCiz(s, yMerkez) {
   const ik = resim('ikon/' + s.id + '.png');
   const a = IKON_EN_AZ + (1 - IKON_EN_AZ) * ikonParlaklik();
   if (ik && ik.complete && ik.naturalWidth) { cx.save(); cx.globalAlpha = a; cx.filter = `saturate(${(0.5 + 0.7 * (a - IKON_EN_AZ) / (1 - IKON_EN_AZ)).toFixed(2)})`; cx.drawImage(ik, x + 7, yMerkez - IK / 2, IK, IK); cx.restore(); }
-  else if (s.id === 'suriye') { cx.font = '900 9px "Segoe UI", sans-serif'; cx.textBaseline = 'middle'; cx.fillStyle = '#ffd23f'; cx.globalAlpha = a; cx.fillText('GG', x + 8, yMerkez + 1); cx.globalAlpha = 1; }
-  else { cx.font = '12px "Segoe UI Emoji"'; cx.textBaseline = 'middle'; cx.globalAlpha = a; cx.fillText({ kurdistan: '🌹', turkiye: '🎵', azerbaycan: '🍦', afghanistan: '🪄' }[s.id] || '🎁', x + 8, yMerkez + 1); cx.globalAlpha = 1; }
-  cx.font = '700 19px "Segoe UI", system-ui, sans-serif'; cx.fillStyle = '#fff'; cx.textBaseline = 'middle';
+  else if (s.id === 'suriye') { cx.font = '900 14px "Segoe UI", sans-serif'; cx.textBaseline = 'middle'; cx.fillStyle = '#ffd23f'; cx.globalAlpha = a; cx.fillText('GG', x + 8, yMerkez + 1); cx.globalAlpha = 1; }
+  else { cx.font = '20px "Segoe UI Emoji"'; cx.textBaseline = 'middle'; cx.globalAlpha = a; cx.fillText({ kurdistan: '🌹', turkiye: '🎵', azerbaycan: '🍦', afghanistan: '🪄' }[s.id] || '🎁', x + 8, yMerkez + 1); cx.globalAlpha = 1; }
+  cx.font = '700 22px "Segoe UI", system-ui, sans-serif'; cx.fillStyle = '#fff'; cx.textBaseline = 'middle';
   cx.fillText(metin, x + 7 + IK + 6, yMerkez + 1);
   return x + w;
 }
