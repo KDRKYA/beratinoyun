@@ -73,6 +73,7 @@ const HIZ = 1.7;                               // koşu animasyonu hızı (1 = G
 const KOSU_KARE_HZ = 60;
 let kosuAdim = 0, kosuSaat = 0;
 const AVATAR_BOY = 23;                         // profil resmi yarıçapı (piksel). Büyük sayı = büyük resim
+const AVATAR_GOSTER = false;                   // false = hediye gönderenin profil fotoğrafı ekranda uçmaz (sayım ve ritim aynen sürer)
 const AVATAR_SURE = 220;                       // profil resminin hayvana uçma süresi (ms). Küçük sayı = daha hızlı
 const AVATAR_ARALIK = 120;                     // art arda gelen resimler arası bekleme (ms). Küçük sayı = daha sık
 const TOPLU_TABAN = 1500;                      // çok hediye gelince toplam süre = TOPLU_TABAN + adet × TOPLU_ADET (ms). 50 hediye ≈ 2,75 sn, 100 hediye ≈ 4 sn
@@ -793,7 +794,7 @@ function kare(simdi) {
     const e = p < .25 ? 0 : (p - .25) / .75, ee = e * e * (3 - 2 * e);
     const bas = rozetSag[u.id] + 44, son = g.x - (g.meta.w * (SERIT_H * HAYVAN_BOY) / g.meta.h) * 0.25;
     const alfa = p < .1 ? p / .1 : (p > .9 ? (1 - p) / .1 : 1);
-    avatarCiz(bas + (son - bas) * ee, sat.y, AVATAR_BOY, u.foto, alfa);
+    if (AVATAR_GOSTER) avatarCiz(bas + (son - bas) * ee, sat.y, AVATAR_BOY, u.foto, alfa);
   }
   cx.restore();
   cx.drawImage(cam, 0, 0);
