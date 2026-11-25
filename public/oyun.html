@@ -73,7 +73,9 @@ const HIZ = 1.7;                               // koşu animasyonu hızı (1 = G
 const KOSU_KARE_HZ = 60;
 let kosuAdim = 0, kosuSaat = 0;
 const AVATAR_BOY = 23;                         // profil resmi yarıçapı (piksel). Büyük sayı = büyük resim
-const AVATAR_GOSTER = false;                   // false = hediye gönderenin profil fotoğrafı ekranda uçmaz (sayım ve ritim aynen sürer)
+const HAYVAN_YAZI = 'kanalskor';               // hayvanların gövdesine yazılan kanal adı ('' = yazı yok)
+const HAYVAN_YAZI_BOY = 0.15;                  // yazı boyu (hayvan yüksekliğine göre)
+const AVATAR_GOSTER = false;                  // false = hediye gönderenin profil fotoğrafı ekranda uçmaz (sayım ve ritim aynen sürer)
 const AVATAR_SURE = 220;                       // profil resminin hayvana uçma süresi (ms). Küçük sayı = daha hızlı
 const AVATAR_ARALIK = 120;                     // art arda gelen resimler arası bekleme (ms). Küçük sayı = daha sık
 const TOPLU_TABAN = 1500;                      // çok hediye gelince toplam süre = TOPLU_TABAN + adet × TOPLU_ADET (ms). 50 hediye ≈ 2,75 sn, 100 hediye ≈ 4 sn
@@ -766,6 +768,12 @@ function kare(simdi) {
     if (g.halka) halkaCiz(burun - dw * 0.42, y, dw * 0.78, SERIT_H * 0.96, g.halka);
     if (g.kontrastli) { const sut = m.sutun || m.kare; cx.drawImage(g.kontrastli, (fr % sut) * g.kw, Math.floor(fr / sut) * g.kh, g.kw, g.kh, ox - bw / 2, y - bh / 2 + SERIT_H * 0.02, bw, bh); }
     else if (g.img.complete && g.img.naturalWidth) cx.drawImage(g.img, (fr % (m.sutun || m.kare)) * m.w, Math.floor(fr / (m.sutun || m.kare)) * m.h, m.w, m.h, ox - bw / 2, y - bh / 2 + SERIT_H * 0.02, bw, bh);
+    if (HAYVAN_YAZI) {   // referanstaki gibi: hayvanın gövdesinde küçük kanal adı
+      cx.save(); cx.font = `800 ${Math.round(bh * HAYVAN_YAZI_BOY)}px "Segoe UI", system-ui, sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+      const tx = ox + bw * 0.04, ty = y + SERIT_H * 0.02;
+      cx.lineWidth = 3; cx.strokeStyle = 'rgba(0,0,0,.45)'; cx.strokeText(HAYVAN_YAZI, tx, ty);
+      cx.fillStyle = 'rgba(255,255,255,.92)'; cx.fillText(HAYVAN_YAZI, tx, ty); cx.restore();
+    }
   }
   if (CANLI) parcaCiz(dt);
   // çizgiler (renkleri yavaşça gökkuşağı gibi döner)
