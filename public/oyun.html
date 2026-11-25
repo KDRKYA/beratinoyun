@@ -60,6 +60,7 @@ const tvFoto = SAHNE ? Object.assign(new Image(), { src: SAHNE.dosya })
   : TV_STIL === 'foto' ? Object.assign(new Image(), { src: FOTO.dosya }) : null;
 // Alt alan videosu: public/video/ içindeki dosya, sessiz ve döngüde. '' yaparsan alt alan şeffaf kalır (OBS'te kendi videonu koyarsın)
 const VIDEO_DOSYA = 'video/gta5-mega-ramp.mp4';
+const VIDEO_BAS = 15;   // alttaki videonun ilk kaç saniyesi atlansın (başa sarınca da buradan başlar). 0 = baştan
 const EKRAN = SAHNE ? { ...SAHNE.ekran }
   : TV_STIL === 'foto'
   ? { x: TV.x + FOTO.ekran.x * FOTO_OLCEK, y: TV.y + FOTO.ekran.y * FOTO_OLCEK, w: FOTO.ekran.w * FOTO_OLCEK, h: FOTO.ekran.h * FOTO_OLCEK, r: FOTO.ekran.r * FOTO_OLCEK }
@@ -422,7 +423,11 @@ function halkaCiz(x, y, w, h, t) {
 }
 
 // ---------- Alt alan: oyun videosu (sessiz, döngü, alanı kırparak doldurur) ----------
-const altVideo = VIDEO_DOSYA ? Object.assign(document.createElement('video'), { src: VIDEO_DOSYA, muted: true, loop: true, playsInline: true, autoplay: true, preload: 'auto' }) : null;
+const altVideo = VIDEO_DOSYA ? Object.assign(document.createElement('video'), { src: VIDEO_DOSYA, muted: true, loop: !VIDEO_BAS, playsInline: true, autoplay: true, preload: 'auto' }) : null;
+if (altVideo && VIDEO_BAS) {   // ilk VIDEO_BAS saniyeyi hiç gösterme: açılışta oradan başla, bitince oraya sar
+  altVideo.addEventListener('loadedmetadata', () => { if (altVideo.duration > VIDEO_BAS + 5) altVideo.currentTime = VIDEO_BAS; });
+  altVideo.addEventListener('ended', () => { altVideo.currentTime = altVideo.duration > VIDEO_BAS + 5 ? VIDEO_BAS : 0; altVideo.play().catch(() => {}); });
+}
 if (altVideo) { altVideo.setAttribute('playsinline', ''); altVideo.play().catch(() => {}); addEventListener('pointerdown', () => altVideo.paused && altVideo.play().catch(() => {})); }
 // Yerleşim (panelden ayarlanır): ust = üst sahnenin ölçeği, videoX = videonun yatay kaydırması (-1 sol, 0 orta, 1 sağ)
 const YER = { odaParlak: 1, hayvanParlak: 1, cizgiParlak: 1, haleParlak: 1, ust: 1, videoX: 0, oyunX: 0, oyunY: 0, videoY: 0, videoZoom: 1, oyunSol: 0, oyunSag: 0, oyunUst: 0, oyunAlt: 0, videoKirp: 0, videoAlt: 0, videoSol: 0, videoSag: 0 };
