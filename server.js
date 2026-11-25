@@ -209,7 +209,7 @@ function istekEkle(url) {
   const i = { no: ++istekNo, url, baslik: url, durum: 'indiriliyor' };
   istekler.push(i); istekYayinla();
   fs.mkdirSync(ISTEK_KLASOR, { recursive: true });
-  ytdlpCalistir(['--no-playlist', '--no-warnings', '--no-progress', '-f', 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio',
+  ytdlpCalistir(['--no-playlist', '--no-warnings', '--no-progress', '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',   // webm (opus): OBS'in tarayıcısı da kesin çalar
     '--match-filter', 'duration<=' + ISTEK_EN_UZUN, '-o', path.join(ISTEK_KLASOR, '%(id)s.%(ext)s'),
     '--no-simulate', '--print', 'after_move:%(title)s\t%(filepath)s', url], (err, out, hataYazi) => {
     if (!istekler.includes(i)) return;   // bu arada panelden silindi
@@ -363,11 +363,15 @@ wss.on('connection', (ws, req) => {
     let m; try { m = JSON.parse(b); } catch { return; }
     if (ws.rol === 'oyun' && m.tip === 'muzikDurum') {   // oyun sayfası müzik durumunu bildirir; aynı anda kaç oyun sayfası açık, panelde görünsün
       ws.oyunKimlik = m.kimlik;
-      oyunSayfalari.set(String(m.kimlik || '?'), { zaman: Date.now(), sessiz: !!m.sessiz, obs: !!m.obs, calan: m.calan || null });
-      for (const [k, v] of oyunSayfalari) if (Date.now() - v.zaman > 10000) oyunSayfalari.delete(k);
-      const yayinVar = [...oyunSayfalari.values()].some(v => !v.sessiz);
-      if (m.sessiz && yayinVar && sonMuzikDurum) sonMuzikDurum = { ...sonMuzikDurum, oyunlar: [...oyunSayfalari.values()] };   // sessiz önizleme, yayındaki sayfanın bilgisini ezmesin
-      else sonMuzikDurum = { ...m, zaman: Date.now(), oyunlar: [...oyunSayfalari.values()] };
+      const k = String(m.kimlik || '?'), once = oyunSayfalari.get(k);
+      oyunSayfalari.set(k, { zaman: Date.now(), ilk: once ? once.ilk : Date.now(), sessiz: !!m.sessiz, obs: !!m.obs, calan: m.calan || null, durum: m });
+      for (const [a, v] of oyunSayfalari) if (Date.now() - v.zaman > 10000) oyunSayfalari.delete(a);
+      // Panelde TEK sayfanın durumu gösterilsin: oyun birden çok yerde açıkken (OBS + Chrome) her biri sırayla
+      // kendi şarkısını bildirince panel sürekli değişiyordu. Öncelik: sessiz olmayan > OBS > en eski açılan.
+      const ana = [...oyunSayfalari.values()].sort((a, b) => (a.sessiz - b.sessiz) || (b.obs - a.obs) || (a.ilk - b.ilk))[0];
+      if (ana.durum !== m) return;   // bu sayfa ana değil: paneli değiştirme
+      const oyunlar = [...oyunSayfalari.values()].map(({ durum, ...v }) => v);
+      sonMuzikDurum = { ...m, zaman: Date.now(), oyunlar };
       return yayinla(sonMuzikDurum, 'panel');
     }
     if (ws.rol === 'oyun' && m.tip === 'istekBasladi') {   // yayındaki oyun istek şarkıyı çalmaya başladı
@@ -375,7 +379,11 @@ wss.on('connection', (ws, req) => {
       if (i) { i.durum = 'caliyor'; i.calan = ws; istekYayinla(); }
       return;
     }
-    if (ws.rol === 'oyun' && m.tip === 'istekBitti') return istekKaldir(Number(m.no));   // bitti / lider değişti / çalınamadı
+    if (ws.rol === 'oyun' && m.tip === 'istekBitti') {   // bitti / lider değişti → listeden düşer; çalınamadıysa hata olarak kalır
+      const i = istekler.find(x => x.no === Number(m.no));
+      if (i && m.hata) { i.durum = 'hata'; i.hata = 'Oyun çalamadı: ' + String(m.hata).slice(0, 120); i.calan = null; logYaz({ olay: 'istek', mesaj: 'İstek şarkı çalınamadı: ' + i.baslik + ' – ' + i.hata }); return istekYayinla(); }
+      return istekKaldir(Number(m.no));
+    }
     if (ws.rol !== 'panel') return;
     try { komut(m); } catch (e) { console.error(e); }
   });

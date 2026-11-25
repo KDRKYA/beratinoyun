@@ -195,7 +195,7 @@ function muzikDurumGonder() {
   }
   const sirali = typeof seritler !== 'undefined' ? [...seritler].sort((a, b) => asilPuan(b) - asilPuan(a)) : [];
   const lider = sirali[0] && asilPuan(sirali[0]) > 0 ? sirali.filter(x => asilPuan(x) === asilPuan(sirali[0])).map(x => x.id) : [];
-  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 4, kimlik: OYUN_KIMLIK, sessiz: MUZIK_SESSIZ, obs: /OBS/i.test(navigator.userAgent) || !!window.obsstudio, lider, ulkeler, calan: oynatici ? { id: oynatici.id, ad: oynatici.istek ? oynatici.ad : dosyaAdi(oynatici.yol), istek: !!oynatici.istek } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
+  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 5, kimlik: OYUN_KIMLIK, sessiz: MUZIK_SESSIZ, obs: /OBS/i.test(navigator.userAgent) || !!window.obsstudio, lider, ulkeler, calan: oynatici ? { id: oynatici.id, ad: oynatici.istek ? oynatici.ad : dosyaAdi(oynatici.yol), istek: !!oynatici.istek } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
 }
 setInterval(muzikDurumGonder, 3000);
 
@@ -225,11 +225,17 @@ function istekKontrol() {
   const s = istekListe.find(x => x.durum === 'hazir' && x.yol && !istekCalinan.has(x.no)); if (!s) return;
   sesHazirla(); if (!ses) return;
   istekCalinan.add(s.no); istekHazirlaniyor = s.no;
-  const audio = new Audio(); audio.preload = 'auto'; audio.src = s.yol;
-  const hata = () => { if (istekHazirlaniyor === s.no) istekHazirlaniyor = null; istekGonder({ tip: 'istekBitti', no: s.no }); };
-  audio.onerror = hata;
+  const audio = new Audio(); audio.preload = 'auto';
+  const hata = neden => {
+    if (istekHazirlaniyor !== s.no) return; istekHazirlaniyor = null; clearTimeout(bekle);
+    audio.oncanplay = audio.onerror = null;
+    istekGonder({ tip: 'istekBitti', no: s.no, hata: neden });
+    setTimeout(istekKontrol, 300);
+  };
+  const bekle = setTimeout(() => hata('dosya 20 sn içinde açılamadı'), 20000);
+  audio.onerror = () => hata('dosya açılamadı (kod ' + (audio.error ? audio.error.code : '?') + ')');
   audio.oncanplay = () => {
-    audio.oncanplay = null;
+    audio.oncanplay = null; clearTimeout(bekle);
     if (istekHazirlaniyor !== s.no) return; istekHazirlaniyor = null;
     if (!istekListe.some(x => x.no === s.no)) return;   // bu arada silindi
     if (ses.state !== 'running') ses.resume();
@@ -239,9 +245,12 @@ function istekKontrol() {
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(MUZIK_SEVIYE, t + SARKI_GECIS);
     const o = { audio, g, id: calanSerit, yol: s.yol, ad: s.baslik, istek: s.no, zamanlayici: null };
     oynatici = o;
-    audio.play().then(() => istekGonder({ tip: 'istekBasladi', no: s.no })).catch(() => istekSonu(o));
+    audio.play().then(() => istekGonder({ tip: 'istekBasladi', no: s.no }))
+      .catch(e => { istekGonder({ tip: 'istekBitti', no: s.no, hata: 'çalma engellendi: ' + ((e && e.name) || e) }); o.istek = -1; istekSonu(o); });
     let bitiyor = false;   // sona SARKI_GECIS kala ülkenin şarkısına yumuşak geçiş
     audio.ontimeupdate = () => { if (!bitiyor && Number.isFinite(audio.duration) && audio.duration - audio.currentTime < SARKI_GECIS) { bitiyor = true; istekSonu(o); } };
     audio.onended = () => istekSonu(o);
   };
+  audio.src = s.yol;
 }
+setInterval(istekKontrol, 2000);   // ses motoru geç hazırlandıysa ya da bir mesaj kaçtıysa istek yine de başlasın

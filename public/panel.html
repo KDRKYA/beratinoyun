@@ -159,7 +159,7 @@
       <h2>Müzik durumu</h2>
       <div id="muzikCalan" class="ipucu" style="margin-bottom:8px">Oyun sayfasından bilgi bekleniyor…</div>
       <div id="muzikUlkeler"></div>
-      <div class="ipucu" style="margin-top:6px">✓ hazır · ⏳ sırada (çalmadan önce yüklenir) · ✗ çalınamıyor (atlanır) · ▶ şu an çalan. Bir şarkı yanlış ülkedeyse ya da beğenmediysen yanındaki <b>✕</b> ile kaldır (silinmez, <i>eski</i> klasörüne taşınır). Her şarkının en hareketli ~40 sn'si çalar, sonra sıradakine geçer.</div>
+      <div class="ipucu" style="margin-top:6px">▶ şu an çalan · ✗ çalınamıyor (atlanır). Bir şarkı yanlış ülkedeyse ya da beğenmediysen yanındaki <b>✕</b> ile kaldır (silinmez, <i>eski</i> klasörüne taşınır). Her şarkının en hareketli ~40 sn'si çalar, sonra sıradakine geçer.</div>
     </div>
     <div class="kart">
       <h2>Oyun</h2>
@@ -284,7 +284,7 @@ $('#yerSifirla').addEventListener('click', () => { for (const k of YER_ALANLAR) 
 })();
 yerGoster({});
 // ---- Müzik durumu (oyun sayfası 3 sn'de bir bildirir) ----
-let muzikSon = 0;
+let muzikSon = 0, sonMuzikBilgi = null;
 const ULKE_AD = { afghanistan: '🇦🇫 Afganistan', suriye: '🇸🇾 Suriye', kurdistan: '☀️ Kürdistan', turkiye: '🇹🇷 Türkiye', azerbaycan: '🇦🇿 Azerbaycan' };
 function muzikGoster(m) {
   // oyun sayfası yerleşim ayarını gerçekten almış mı? (ayar değiştikten 4 sn sonra karşılaştır)
@@ -293,29 +293,42 @@ function muzikGoster(m) {
     yerOyunEski = !y || YER_ALANLAR.some(k => !(k in y)) || YER_ALANLAR.some(k => Math.abs((y[k] || 0) - (yerDeger[k] || 0)) > 0.004);
     yerUyariGoster();
   }
-  muzikSon = Date.now();
+  muzikSon = Date.now(); sonMuzikBilgi = m; istekGoster(istekSon);
   const kac = Object.values(m.ulkeler || {}).reduce((t, l) => t + l.length, 0);
   const acik = (m.oyunlar || []).filter(o => !o.sessiz);
   const uyari = acik.length > 1
     ? '<div style="color:#ff8a8a;font-weight:700;margin-bottom:6px">⚠️ Oyun sayfası şu an ' + acik.length + ' yerde açık ve hepsi müzik çalıyor: şarkılar üst üste biniyor, karışık duyuluyor. OBS dışındaki oyun pencerelerini/sekmelerini kapat (önizleme için paneldeki sessiz linki kullan).</div>' : '';
   const liderAd = (m.lider || []).map(id => ULKE_AD[id] || id).join(' = ');
   const uyumsuz = m.calan && m.lider && m.lider.length && !m.lider.includes(m.calan.id);
-  $('#muzikCalan').innerHTML = uyari + (liderAd ? '🏁 Birinci: <b>' + esc(liderAd) + '</b>' + (uyumsuz ? ' <span style="color:#ff8a8a">(çalan şarkı başka ülkenin!)</span>' : '') + '<br>' : '') + (m.calan ? '▶ Şimdi çalan: <b>' + esc(m.calan.istek ? '🎤 İstek şarkı' : (ULKE_AD[m.calan.id] || m.calan.id)) + '</b> – ' + esc(m.calan.ad) : 'Şu an müzik çalmıyor (kimsenin puanı yoksa ya da berabereyse normal).')
-    + ' · Toplam ' + kac + ' şarkı' + (m.sesDurum && m.sesDurum !== 'running' ? ' · <span style="color:#ff8a8a">Ses kapalı (' + esc(m.sesDurum) + '): OBS\'te kaynağın "Sesi OBS ile kontrol et" ayarını kontrol et</span>' : '');
-  $('#muzikUlkeler').innerHTML = Object.entries(m.ulkeler || {}).map(([id, l]) => '<div class="mz-satir"><span class="mz-ulke">' + esc(ULKE_AD[id] || id) + ' (' + l.length + ')</span>'
+  htmlYaz('#muzikCalan', uyari + (liderAd ? '🏁 Birinci: <b>' + esc(liderAd) + '</b>' + (uyumsuz ? ' <span style="color:#ff8a8a">(çalan şarkı başka ülkenin!)</span>' : '') + '<br>' : '') + (m.calan ? '▶ Şimdi çalan: <b>' + esc(m.calan.istek ? '🎤 İstek şarkı' : (ULKE_AD[m.calan.id] || m.calan.id)) + '</b> – ' + esc(m.calan.ad) : 'Şu an müzik çalmıyor (kimsenin puanı yoksa ya da berabereyse normal).')
+    + ' · Toplam ' + kac + ' şarkı' + (m.sesDurum && m.sesDurum !== 'running' ? ' · <span style="color:#ff8a8a">Ses kapalı (' + esc(m.sesDurum) + '): OBS\'te kaynağın "Sesi OBS ile kontrol et" ayarını kontrol et</span>' : ''));
+  // Şarkı listesi sade: sadece ▶ (çalan) ve ✗ (çalınamıyor) değişir. "Yükleniyor/hazır" durumu gösterilmez:
+  // bellek için şarkılar sürekli yüklenip atıldığından liste boşuna kıpırdıyordu.
+  htmlYaz('#muzikUlkeler', Object.entries(m.ulkeler || {}).map(([id, l]) => '<div class="mz-satir"><span class="mz-ulke">' + esc(ULKE_AD[id] || id) + ' (' + l.length + ')</span>'
     + (l.length ? l.map(x => {
-        const calan = m.calan && m.calan.id === id && m.calan.ad === x.ad;
-        const sinif = calan ? 'calan' : x.bozuk ? 'bozuk' : x.hazir ? 'hazir' : '';
-        return '<span class="mz-sarki ' + sinif + '" title="' + esc(x.ad + (x.bozuk ? ' – ' + x.bozuk : '')) + '">' + (calan ? '▶ ' : x.bozuk ? '✗ ' : x.hazir ? '✓ ' : '⏳ ') + esc(x.ad.replace(/\.[^.]+$/, ''))
+        const calan = m.calan && !m.calan.istek && m.calan.id === id && m.calan.ad === x.ad;
+        const sinif = calan ? 'calan' : x.bozuk ? 'bozuk' : 'hazir';
+        return '<span class="mz-sarki ' + sinif + '" title="' + esc(x.ad + (x.bozuk ? ' – ' + x.bozuk : '')) + '">' + (calan ? '▶ ' : x.bozuk ? '✗ ' : '') + esc(x.ad.replace(/\.[^.]+$/, ''))
           + ' <button class="mz-kaldir" data-kaldir-serit="' + esc(id) + '" data-kaldir-ad="' + esc(x.ad) + '" title="Bu şarkıyı bu ülkeden kaldır">✕</button></span>';
-      }).join('') : '<span class="mz-sarki bozuk">klasörde şarkı yok</span>') + '</div>').join('');
+      }).join('') : '<span class="mz-sarki bozuk">klasörde şarkı yok</span>') + '</div>').join(''));
 }
-setInterval(() => { if (Date.now() - muzikSon > 10000) $('#muzikCalan').innerHTML = '<span style="color:#ffb86b">Oyun sayfasından müzik bilgisi gelmiyor. OBS\'te oyun kaynağına sağ tık → Yenile. Yine gelmiyorsa müzik dosyası (muzik.js) eski sürümde kalmış demektir.</span>'; }, 5000);
+// sadece içerik gerçekten değiştiyse yaz (her 3 sn'de aynı şeyi yeniden çizip kıpırdatmasın)
+function htmlYaz(sec, html) { const el = $(sec); if (el.dataset.son !== html) { el.innerHTML = html; el.dataset.son = html; } }
+setInterval(() => { if (Date.now() - muzikSon > 10000) htmlYaz('#muzikCalan', '<span style="color:#ffb86b">Oyun sayfasından müzik bilgisi gelmiyor. OBS\'te oyun kaynağına sağ tık → Yenile. Yine gelmiyorsa müzik dosyası (muzik.js) eski sürümde kalmış demektir.</span>'); }, 5000);
 // ---- İstek şarkı ----
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'istekLink') istekYolla(); });
 const ISTEK_DURUM = { indiriliyor: ['⏬', 'indiriliyor…', ''], hazir: ['⏳', 'sırada', 'hazir'], caliyor: ['▶', 'çalıyor', 'calan'], hata: ['✗', 'hata', 'bozuk'] };
+let istekSon = [];
 function istekGoster(liste) {
-  $('#istekListe').innerHTML = (liste || []).map(i => {
+  istekSon = liste || [];
+  // bekleyen istek varken yayındaki oyun sayfası onu çalamıyorsa nedenini söyle
+  let uyari = '';
+  if (istekSon.some(i => i.durum === 'hazir')) {
+    const md = sonMuzikBilgi;
+    if (!md || Date.now() - muzikSon > 10000 || !(md.oyunlar || []).some(o => !o.sessiz)) uyari = 'Yayındaki oyun sayfası açık değil ya da bağlı değil: OBS\'te oyun kaynağına sağ tık → <b>Yenile</b>.';
+    else if (!(md.surum >= 5)) uyari = 'Oyun sayfası eski sürümde kalmış, istek şarkıyı bilmiyor: OBS\'te oyun kaynağına sağ tık → <b>Yenile</b> (Chrome\'da açıksa F5).';
+  }
+  $('#istekListe').innerHTML = (uyari ? '<div style="color:#ff8a8a;font-weight:700">⚠️ ' + uyari + '</div>' : '') + istekSon.map(i => {
     const [ik, yazi, sinif] = ISTEK_DURUM[i.durum] || ['?', i.durum, ''];
     return '<div class="mz-sarki ' + sinif + '" style="max-width:none;white-space:normal;font-size:13px;padding:5px 10px;text-decoration:none" title="' + esc(i.url) + '">'
       + ik + ' <b>' + esc(i.baslik) + '</b> · ' + esc(yazi) + (i.hata ? ' – ' + esc(i.hata) : '')
