@@ -200,6 +200,9 @@
       <div class="ses-satir"><span>🔊 Vuruş (tık)</span><button class="kucuk" data-ses="tik" data-adim="-0.1">−</button><input type="range" id="sesTik" min="0" max="2.5" step="0.05"><button class="kucuk" data-ses="tik" data-adim="0.1">+</button><b id="sesTikYazi">–</b></div>
       <div class="ses-satir"><span>🎵 Müzik</span><button class="kucuk" data-ses="muzik" data-adim="-0.05">−</button><input type="range" id="sesMuzik" min="0" max="1" step="0.01"><button class="kucuk" data-ses="muzik" data-adim="0.05">+</button><b id="sesMuzikYazi">–</b></div>
       <div class="ses-satir"><span>⏱️ Ses senkronu</span><button class="kucuk" data-ses="gecikme" data-adim="-10">−</button><input type="range" id="sesGecikme" min="-300" max="300" step="10"><button class="kucuk" data-ses="gecikme" data-adim="10">+</button><b id="sesGecikmeYazi">–</b></div>
+      <div class="ses-satir"><span>📣 Anons (spiker)</span><button class="kucuk" data-ses="anons" data-adim="-0.1">−</button><input type="range" id="sesAnons" min="0" max="2" step="0.05"><button class="kucuk" data-ses="anons" data-adim="0.1">+</button><b id="sesAnonsYazi">–</b></div>
+      <div class="ses-satir"><span>🔁 "X önde" sıklığı</span><button class="kucuk" data-ses="anonsAralik" data-adim="-1">−</button><input type="range" id="sesAnonsAralik" min="0" max="30" step="1"><button class="kucuk" data-ses="anonsAralik" data-adim="1">+</button><b id="sesAnonsAralikYazi">–</b></div>
+      <div class="ipucu" style="margin-bottom:6px"><b>Anons</b>: bir ülke birinciliğe geçince spiker "Türkiye öne geçti!" der; ayrıca seçtiğin aralıkla "Şu an Kürdistan önde!" der (yok = sadece öne geçişte). Anons sırasında müzik kısa süre kısılır. 0 = anons kapalı.</div>
       <div class="ipucu" style="margin-bottom:6px">Yayında tık sesi avatar hayvana değmeden <b>önce</b> geliyorsa <b>+</b>, değdikten <b>sonra</b> geliyorsa <b>−</b> yap. Paneldeki +1 / +10 butonlarıyla deneyerek ayarla.</div>
       <div class="ipucu">Sadece yayındaki oyun sayfasının sesini değiştirir, anında uygulanır ve kaydedilir. Panelde ses çalmaz.</div>
     </div>
@@ -300,28 +303,33 @@ const BAYRAK = { afghanistan: '🇦🇫', suriye: '🇸🇾', kurdistan: '☀️
 const DURUM_YAZI = { kapali: 'Kapalı', baglaniyor: 'Bağlanıyor', bagli: 'Bağlı', yeniden: 'Yeniden deniyor', hata: 'Hata' };
 const gonder = m => ws && ws.readyState === 1 && ws.send(JSON.stringify(m));
 // ---- Yayın sesi (oyun sayfasının vuruş ve müzik sesi) ----
-let sesDeger = { tik: 1.4, muzik: 0.5, gecikme: 0 }, sesSurukle = false, sesZaman = null;
+let sesDeger = { tik: 1.4, muzik: 0.5, gecikme: 0, anons: 1, anonsAralik: 3 }, sesSurukle = false, sesZaman = null;
+const SES_ID = { tik: '#sesTik', muzik: '#sesMuzik', gecikme: '#sesGecikme', anons: '#sesAnons', anonsAralik: '#sesAnonsAralik' };
 function sesGoster(s) {
   sesDeger = { ...sesDeger, ...s };
-  if (!sesSurukle) { $('#sesTik').value = sesDeger.tik; $('#sesMuzik').value = sesDeger.muzik; $('#sesGecikme').value = sesDeger.gecikme; }
+  if (!sesSurukle) for (const [k, id] of Object.entries(SES_ID)) $(id).value = sesDeger[k];
   $('#sesGecikmeYazi').textContent = sesDeger.gecikme === 0 ? '0 ms' : (sesDeger.gecikme > 0 ? '+' : '') + sesDeger.gecikme + ' ms';
   $('#sesTikYazi').textContent = Math.round(sesDeger.tik * 100) + '%';
   $('#sesMuzikYazi').textContent = Math.round(sesDeger.muzik * 100) + '%';
+  $('#sesAnonsYazi').textContent = sesDeger.anons > 0 ? Math.round(sesDeger.anons * 100) + '%' : 'kapalı';
+  $('#sesAnonsAralikYazi').textContent = sesDeger.anonsAralik > 0 ? sesDeger.anonsAralik + ' dk' : 'yok';
 }
 function sesGonder(alan, v) {
-  const sinir = alan === 'tik' ? 2.5 : 1;
-  sesDeger[alan] = alan === 'gecikme' ? Math.round(Math.max(-300, Math.min(300, v))) : Math.round(Math.max(0, Math.min(sinir, v)) * 100) / 100;
+  const sinir = alan === 'tik' ? 2.5 : alan === 'anons' ? 2 : 1;
+  sesDeger[alan] = alan === 'gecikme' ? Math.round(Math.max(-300, Math.min(300, v)))
+    : alan === 'anonsAralik' ? Math.round(Math.max(0, Math.min(30, v)))
+    : Math.round(Math.max(0, Math.min(sinir, v)) * 100) / 100;
   sesGoster({});
   clearTimeout(sesZaman); sesZaman = setTimeout(() => gonder({ tip: 'ses', [alan]: sesDeger[alan] }), 60);
 }
-for (const [id, alan] of [['#sesTik', 'tik'], ['#sesMuzik', 'muzik'], ['#sesGecikme', 'gecikme']]) {
+for (const [alan, id] of Object.entries(SES_ID)) {
   const el = $(id);
   el.addEventListener('input', () => { sesSurukle = true; sesGonder(alan, Number(el.value)); });
   el.addEventListener('change', () => { sesSurukle = false; });
 }
 document.querySelectorAll('[data-ses]').forEach(b => b.addEventListener('click', () => {
   const alan = b.dataset.ses; sesGonder(alan, sesDeger[alan] + Number(b.dataset.adim));
-  $({ tik: '#sesTik', muzik: '#sesMuzik', gecikme: '#sesGecikme' }[alan]).value = sesDeger[alan];
+  $(SES_ID[alan]).value = sesDeger[alan];
 }));
 // ---- Yerleşim (üst oyunun ölçeği, alt videonun yatay kaydırması) ----
 const KESME = [['oyunUst', '📺 Oyun üstü'], ['oyunAlt', '📺 Oyun altı'], ['oyunSol', '📺 Oyun solu'], ['oyunSag', '📺 Oyun sağı'], ['videoKirp', '🎬 Video üstü'], ['videoAlt', '🎬 Video altı'], ['videoSol', '🎬 Video solu'], ['videoSag', '🎬 Video sağı']];

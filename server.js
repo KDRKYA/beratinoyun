@@ -60,7 +60,7 @@ function yayinla(mesaj, hedef) {
   for (const ws of istemciler) if (!hedef || ws.rol === hedef) { try { ws.send(s); } catch {} }
 }
 // Yayındaki ses seviyeleri (panelden ayarlanır): tik = vuruş sesi (1 = %100, 2 = %200), muzik = ülke müziği (0-1)
-const SES_VARSAYILAN = { tik: 1.4, muzik: 0.5, gecikme: 0 };   // gecikme: tık sesinin kayması (ms, + = ses daha geç)
+const SES_VARSAYILAN = { tik: 1.4, muzik: 0.5, gecikme: 0, anons: 1, anonsAralik: 3 };   // gecikme: tık sesinin kayması (ms, + = ses daha geç); anons: spiker sesi (0 = kapalı); anonsAralik: kaç dakikada bir "X önde" (0 = sadece öne geçince)
 function sesAyar() { return { ...SES_VARSAYILAN, ...(durum.ses || {}) }; }
 // Yerleşim (panelden sürükleyerek): ust = üstteki oyunun ölçeği (1 = normal), videoX = alt videonun yatay kaydırması (-1 sol ... 1 sağ)
 // Yerleşim: odaParlak = TV ekranı dışındaki odanın parlaklığı (1 = normal), hayvanParlak/cizgiParlak/haleParlak = hayvanların, şerit çizgilerinin ve hayvanların arkasındaki elips ışığın parlaklığı, ust = üstteki oyunun ölçeği, oyunX/videoX = yatay kaydırma (-1 sol ... 1 sağ), oyunY/videoY = dikey kaydırma (-1 yukarı ... 1 aşağı), videoZoom = videoyu yakınlaştırma,
@@ -75,12 +75,39 @@ function durumOzet() {
   return { tip: 'durum', seritler: durum.seritler, kullanici: durum.kullanici, baglanti: baglantiDurum, sonHediyeler, ses: sesAyar(), yer: yerAyar(), video: videoAyar() };
 }
 
+// ---------- Spiker anonsu: "Türkiye öne geçti!", arada bir "Şu an Kürdistan önde!" ----------
+// Sesler public/anons/ içinde (araclar/anons_hazirla.py üretir). Sunucu karar verir, tüm oyun sayfaları aynı anda çalar.
+const ANONS_GECIKME = 1800;    // ms: puan değişince bekle (avatar uçup hayvan öne geçsin, sonra anons)
+const ANONS_EN_SIK = 6000;     // ms: iki anons arası en az
+function tekLider() {
+  const s = [...durum.seritler].sort((a, b) => b.puan - a.puan);
+  return s[0] && s[0].puan > 0 && (!s[1] || s[1].puan < s[0].puan) ? s[0].id : null;
+}
+let anonsLider = tekLider(), sonAnons = Date.now(), anonsZaman = null;
+function anonsCal(id, tur) {
+  sonAnons = Date.now();
+  yayinla({ tip: 'anons', dosya: 'anons/' + id + '-' + tur + Math.floor(Math.random() * 2) + '.mp3' }, 'oyun');
+}
+function anonsKontrol() {
+  clearTimeout(anonsZaman);
+  anonsZaman = setTimeout(() => {
+    const l = tekLider(); if (!l || l === anonsLider) { if (l) anonsLider = l; return; }
+    if (Date.now() - sonAnons < ANONS_EN_SIK) return anonsKontrol();   // çok sık olmasın: biraz sonra tekrar bak
+    anonsLider = l;
+    if (sesAyar().anons > 0) anonsCal(l, 'gecti');
+  }, ANONS_GECIKME);
+}
+setInterval(() => {   // arada bir kim öndeyse söyle
+  const a = sesAyar(), l = tekLider();
+  if (a.anons > 0 && a.anonsAralik > 0 && l && Date.now() - sonAnons >= a.anonsAralik * 60000) anonsCal(l, 'onde');
+}, 10000);
+
 // ---------- Puan ----------
 function puanEkle(seritId, miktar, kaynak, kullanici) {
   const s = durum.seritler.find(x => x.id === seritId);
   if (!s || !miktar) return;
   s.puan = Math.max(0, s.puan + miktar);
-  kaydet();
+  kaydet(); anonsKontrol();
   yayinla({ tip: 'hediye', serit: seritId, miktar, puan: s.puan, kullanici: kullanici || null, kaynak });
   yayinla(durumOzet(), 'panel');
   logYaz({ olay: 'puan', serit: seritId, miktar, puan: s.puan, kaynak, kullanici: kullanici ? kullanici.ad : null });
@@ -257,7 +284,7 @@ function komut(m) {
     case 'sifirla': {
       const hedefler = m.serit ? durum.seritler.filter(s => s.id === m.serit) : durum.seritler;
       for (const s of hedefler) s.puan = 0;
-      kaydet(); logYaz({ olay: 'sifirla', serit: m.serit || 'hepsi' });
+      kaydet(); anonsLider = tekLider(); logYaz({ olay: 'sifirla', serit: m.serit || 'hepsi' });
       yayinla({ tip: 'sifirla' }); yayinla(durumOzet());
       break;
     }
@@ -266,6 +293,8 @@ function komut(m) {
       if (m.tik !== undefined && Number.isFinite(Number(m.tik))) s.tik = Math.max(0, Math.min(2.5, Number(m.tik)));
       if (m.muzik !== undefined && Number.isFinite(Number(m.muzik))) s.muzik = Math.max(0, Math.min(1, Number(m.muzik)));
       if (m.gecikme !== undefined && Number.isFinite(Number(m.gecikme))) s.gecikme = Math.max(-300, Math.min(300, Math.round(Number(m.gecikme))));
+      if (m.anons !== undefined && Number.isFinite(Number(m.anons))) s.anons = Math.max(0, Math.min(2, Number(m.anons)));
+      if (m.anonsAralik !== undefined && Number.isFinite(Number(m.anonsAralik))) s.anonsAralik = Math.max(0, Math.min(30, Math.round(Number(m.anonsAralik))));
       durum.ses = s; kaydet();
       yayinla({ tip: 'ses', ses: s });
       break;
@@ -281,7 +310,7 @@ function komut(m) {
     case 'puanAyarla': {
       const s = durum.seritler.find(x => x.id === m.serit);
       const p = Math.max(0, Math.trunc(Number(m.puan)));
-      if (s && Number.isFinite(p)) { s.puan = p; kaydet(); logYaz({ olay: 'puanAyarla', serit: s.id, puan: p }); yayinla(durumOzet()); }
+      if (s && Number.isFinite(p)) { s.puan = p; kaydet(); anonsKontrol(); logYaz({ olay: 'puanAyarla', serit: s.id, puan: p }); yayinla(durumOzet()); }
       break;
     }
     case 'sarkiKaldir': {   // yanlış ülkede / istenmeyen şarkıyı o ülkenin "eski" klasörüne taşı (silinmez)

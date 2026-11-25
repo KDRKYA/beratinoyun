@@ -266,6 +266,32 @@ function istekKontrol() {
 }
 setInterval(istekKontrol, 2000);
 
+// ---------- Spiker anonsu ----------
+// Sunucu "Türkiye öne geçti!" gibi bir anons gönderince: müzik kısa bir süre kısılır, ses çalar, müzik geri açılır.
+let ANONS_SEVIYE = 1;            // panelden "Anons" sesi (0 = kapalı)
+const ANONS_KISIK = 0.3;         // anons sırasında müzik normalin kaçta kaçına insin
+const anonsTampon = new Map();
+async function anonsCal(dosya) {
+  if (MUZIK_SESSIZ || !(ANONS_SEVIYE > 0)) return;
+  sesHazirla(); if (!ses) return;
+  try {
+    let t = anonsTampon.get(dosya);
+    if (!t) { t = await ses.decodeAudioData(await (await fetch(dosya)).arrayBuffer()); anonsTampon.set(dosya, t); }
+    if (ses.state !== 'running') ses.resume();
+    const k = ses.createBufferSource(); k.buffer = t;
+    const g = ses.createGain(); g.gain.value = ANONS_SEVIYE; k.connect(g); g.connect(ses.destination);
+    const s = ses.currentTime, o = oynatici;
+    if (o) {   // müziği kıs → anons → geri aç
+      o.g.gain.cancelScheduledValues(s); o.g.gain.setValueAtTime(o.g.gain.value, s);
+      o.g.gain.linearRampToValueAtTime(MUZIK_SEVIYE * ANONS_KISIK, s + 0.25);
+      o.g.gain.setValueAtTime(MUZIK_SEVIYE * ANONS_KISIK, s + 0.25 + t.duration);
+      o.g.gain.linearRampToValueAtTime(MUZIK_SEVIYE, s + 0.25 + t.duration + 0.6);
+    }
+    k.start(s + 0.25);
+  } catch (e) { console.warn('anons çalınamadı', dosya, e); }
+}
+function anonsSeviyeAyarla(v) { ANONS_SEVIYE = Math.max(0, Math.min(2, v)); }
+
 // ---------- Herkes aynı müziği duysun ----------
 // Oyun birden çok yerde açıksa (OBS, Chrome, telefon) sunucu birini "ana" seçer (öncelik OBS).
 // Ana sayfa şarkıyı kendisi seçer; diğerleri (takipçi) ana sayfanın çaldığı şarkıyı AYNI saniyeden çalar.

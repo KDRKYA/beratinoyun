@@ -806,6 +806,7 @@ function sesAyarUygula(s) {
   if (Number.isFinite(s.tik)) SES_SEVIYE = s.tik;
   if (Number.isFinite(s.gecikme)) SES_KAYMA = s.gecikme;
   if (Number.isFinite(s.muzik) && typeof muzikSeviyeAyarla === 'function') muzikSeviyeAyarla(s.muzik);
+  if (Number.isFinite(s.anons) && typeof anonsSeviyeAyarla === 'function') anonsSeviyeAyarla(s.anons);
 }
 function soket() {
   const ws = new WebSocket('ws://' + location.host + '/?rol=oyun');
@@ -836,6 +837,7 @@ function soket() {
     else if (m.tip === 'muzikYenile' && typeof muzikHemenYenile === 'function') muzikHemenYenile();   // panelden şarkı kaldırıldı
     else if (m.tip === 'istekler' && typeof istekGuncelle === 'function') istekGuncelle(m.liste);      // panelden istek şarkı
     else if (m.tip === 'muzikSenk' && typeof muzikSenkAl === 'function') muzikSenkAl(m);             // herkes aynı müziği duysun
+    else if (m.tip === 'anons' && typeof anonsCal === 'function') anonsCal(m.dosya);                 // spiker: "X öne geçti!"
   };
   ws.onclose = () => setTimeout(soket, 1500);
 }
