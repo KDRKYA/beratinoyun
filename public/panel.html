@@ -147,6 +147,15 @@
   </section>
   <section>
     <div class="kart" style="margin-bottom:16px">
+      <h2>İstek şarkı</h2>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="istekLink" placeholder="YouTube linkini yapıştır" style="flex:1;min-width:0" inputmode="url" autocomplete="off">
+        <button id="istekBtn" style="background:#2b6cff">▶ Çal</button>
+      </div>
+      <div id="istekListe" style="display:flex;flex-direction:column;gap:5px"></div>
+      <div class="ipucu" style="margin-top:6px">Şarkı indirilir (birkaç saniye), sonra o an çalan ülke müziğinin arasına girer ve <b>tamamı</b> çalar. Bitince aynı ülkenin sıradaki şarkısıyla döngü devam eder. İstek çalarken o ülke birincilikten düşerse istek kesilir, yeni birincinin şarkısı başlar. Birden fazla istek sırayla çalar; <b>✕</b> ile atla/sil. En fazla 15 dk'lık video.</div>
+    </div>
+    <div class="kart" style="margin-bottom:16px">
       <h2>Müzik durumu</h2>
       <div id="muzikCalan" class="ipucu" style="margin-bottom:8px">Oyun sayfasından bilgi bekleniyor…</div>
       <div id="muzikUlkeler"></div>
@@ -291,7 +300,7 @@ function muzikGoster(m) {
     ? '<div style="color:#ff8a8a;font-weight:700;margin-bottom:6px">⚠️ Oyun sayfası şu an ' + acik.length + ' yerde açık ve hepsi müzik çalıyor: şarkılar üst üste biniyor, karışık duyuluyor. OBS dışındaki oyun pencerelerini/sekmelerini kapat (önizleme için paneldeki sessiz linki kullan).</div>' : '';
   const liderAd = (m.lider || []).map(id => ULKE_AD[id] || id).join(' = ');
   const uyumsuz = m.calan && m.lider && m.lider.length && !m.lider.includes(m.calan.id);
-  $('#muzikCalan').innerHTML = uyari + (liderAd ? '🏁 Birinci: <b>' + esc(liderAd) + '</b>' + (uyumsuz ? ' <span style="color:#ff8a8a">(çalan şarkı başka ülkenin!)</span>' : '') + '<br>' : '') + (m.calan ? '▶ Şimdi çalan: <b>' + esc(ULKE_AD[m.calan.id] || m.calan.id) + '</b> – ' + esc(m.calan.ad) : 'Şu an müzik çalmıyor (kimsenin puanı yoksa ya da berabereyse normal).')
+  $('#muzikCalan').innerHTML = uyari + (liderAd ? '🏁 Birinci: <b>' + esc(liderAd) + '</b>' + (uyumsuz ? ' <span style="color:#ff8a8a">(çalan şarkı başka ülkenin!)</span>' : '') + '<br>' : '') + (m.calan ? '▶ Şimdi çalan: <b>' + esc(m.calan.istek ? '🎤 İstek şarkı' : (ULKE_AD[m.calan.id] || m.calan.id)) + '</b> – ' + esc(m.calan.ad) : 'Şu an müzik çalmıyor (kimsenin puanı yoksa ya da berabereyse normal).')
     + ' · Toplam ' + kac + ' şarkı' + (m.sesDurum && m.sesDurum !== 'running' ? ' · <span style="color:#ff8a8a">Ses kapalı (' + esc(m.sesDurum) + '): OBS\'te kaynağın "Sesi OBS ile kontrol et" ayarını kontrol et</span>' : '');
   $('#muzikUlkeler').innerHTML = Object.entries(m.ulkeler || {}).map(([id, l]) => '<div class="mz-satir"><span class="mz-ulke">' + esc(ULKE_AD[id] || id) + ' (' + l.length + ')</span>'
     + (l.length ? l.map(x => {
@@ -302,6 +311,22 @@ function muzikGoster(m) {
       }).join('') : '<span class="mz-sarki bozuk">klasörde şarkı yok</span>') + '</div>').join('');
 }
 setInterval(() => { if (Date.now() - muzikSon > 10000) $('#muzikCalan').innerHTML = '<span style="color:#ffb86b">Oyun sayfasından müzik bilgisi gelmiyor. OBS\'te oyun kaynağına sağ tık → Yenile. Yine gelmiyorsa müzik dosyası (muzik.js) eski sürümde kalmış demektir.</span>'; }, 5000);
+// ---- İstek şarkı ----
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'istekLink') istekYolla(); });
+const ISTEK_DURUM = { indiriliyor: ['⏬', 'indiriliyor…', ''], hazir: ['⏳', 'sırada', 'hazir'], caliyor: ['▶', 'çalıyor', 'calan'], hata: ['✗', 'hata', 'bozuk'] };
+function istekGoster(liste) {
+  $('#istekListe').innerHTML = (liste || []).map(i => {
+    const [ik, yazi, sinif] = ISTEK_DURUM[i.durum] || ['?', i.durum, ''];
+    return '<div class="mz-sarki ' + sinif + '" style="max-width:none;white-space:normal;font-size:13px;padding:5px 10px;text-decoration:none" title="' + esc(i.url) + '">'
+      + ik + ' <b>' + esc(i.baslik) + '</b> · ' + esc(yazi) + (i.hata ? ' – ' + esc(i.hata) : '')
+      + ' <button class="mz-kaldir" data-istek-sil="' + i.no + '" title="Atla / sil">✕</button></div>';
+  }).join('') || '<span class="ipucu">Sırada istek yok.</span>';
+}
+function istekYolla() {
+  const url = $('#istekLink').value.trim(); if (!url) return;
+  if (!/^https?:\/\/([a-z0-9-]+\.)?(youtube\.com|youtu\.be)\//i.test(url)) { alert('Bu bir YouTube linki değil.'); return; }
+  gonder({ tip: 'istek', url }); $('#istekLink').value = '';
+}
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const seritAd = id => { const s = durum.seritler.find(x => x.id === id); return s ? s.ad + ' (' + s.hediye + ')' : id; };
 
@@ -388,6 +413,7 @@ function soket() {
     if (m.ses) sesGoster(m.ses);
     if (m.yer && m.tip !== 'muzikDurum') { yerSunucuEski = YER_ALANLAR.some(k => !(k in m.yer)); yerUyariGoster(); yerGoster(m.yer); }
     if (m.tip === 'muzikDurum') { muzikGoster(m); return; }
+    if (m.tip === 'istekler') { istekGoster(m.liste); return; }
     if (m.tip === 'durum') { durum = m; ciz(); }
     else if (m.tip === 'log') $('#log').insertAdjacentHTML('afterbegin', logSatir(m.kayit));
   };
@@ -396,6 +422,8 @@ function soket() {
 
 document.addEventListener('click', e => {
   const t = e.target;
+  if (t.id === 'istekBtn') return istekYolla();
+  if (t.dataset.istekSil) return gonder({ tip: 'istekSil', no: Number(t.dataset.istekSil) });
   if (t.dataset.kaldirAd) {
     if (confirm('"' + t.dataset.kaldirAd + '" şarkısı ' + (ULKE_AD[t.dataset.kaldirSerit] || t.dataset.kaldirSerit) + ' listesinden kaldırılsın mı?\n(Silinmez, o ülkenin "eski" klasörüne taşınır.)'))
       gonder({ tip: 'sarkiKaldir', serit: t.dataset.kaldirSerit, ad: t.dataset.kaldirAd });

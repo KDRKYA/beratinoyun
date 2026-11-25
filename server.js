@@ -177,9 +177,69 @@ function kes() {
   baglantiAyarla('kapali', 'Elle kapatıldı');
 }
 
+// ---------- İstek şarkı: panelden YouTube linki → sesi indirilir → oyun çalan müziğin arasına sokar ----------
+// İndirilen dosyalar public/muzik/istek/ klasörüne gider (repoda yok). İstek bitince oyun "istekBitti" der, listeden düşer.
+const ISTEK_KLASOR = path.join(PUBLIC, 'muzik', 'istek');
+const ISTEK_EN_UZUN = 900;   // saniye: bundan uzun video (saatlik mix vb.) indirilmez
+let istekler = [], istekNo = 0;
+function istekOzet() { return { tip: 'istekler', liste: istekler.map(({ no, url, baslik, durum, yol, hata }) => ({ no, url, baslik, durum, yol, hata })) }; }
+function istekYayinla() { yayinla(istekOzet()); }
+function ytdlpAdaylari() {
+  const l = ['yt-dlp'];
+  if (process.env.LOCALAPPDATA) {
+    l.push(path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links', 'yt-dlp.exe'));
+    try {   // winget bazen PATH'e eklemiyor: paket klasöründen bul
+      const pk = path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Packages');
+      for (const d of fs.readdirSync(pk)) if (/^yt-dlp/i.test(d)) l.push(path.join(pk, d, 'yt-dlp.exe'));
+    } catch {}
+  }
+  l.push(path.join(KOK, 'araclar', 'yt-dlp.exe'));
+  return l;
+}
+function ytdlpCalistir(arg, bitti, adaylar = ytdlpAdaylari()) {
+  const exe = adaylar[0];
+  require('child_process').execFile(exe, arg, { timeout: 240000, windowsHide: true, maxBuffer: 4e6, env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' } }, (err, out, hata) => {
+    if (err && err.code === 'ENOENT' && adaylar.length > 1) return ytdlpCalistir(arg, bitti, adaylar.slice(1));
+    bitti(err, String(out || ''), String(hata || ''));
+  });
+}
+function istekEkle(url) {
+  url = String(url || '').trim();
+  if (!/^https?:\/\/([a-z0-9-]+\.)?(youtube\.com|youtu\.be)\//i.test(url)) return;
+  const i = { no: ++istekNo, url, baslik: url, durum: 'indiriliyor' };
+  istekler.push(i); istekYayinla();
+  fs.mkdirSync(ISTEK_KLASOR, { recursive: true });
+  ytdlpCalistir(['--no-playlist', '--no-warnings', '--no-progress', '-f', 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio',
+    '--match-filter', 'duration<=' + ISTEK_EN_UZUN, '-o', path.join(ISTEK_KLASOR, '%(id)s.%(ext)s'),
+    '--no-simulate', '--print', 'after_move:%(title)s\t%(filepath)s', url], (err, out, hataYazi) => {
+    if (!istekler.includes(i)) return;   // bu arada panelden silindi
+    const satir = out.trim().split(/\r?\n/).filter(s => s.includes('\t')).pop() || '';
+    const [baslik, dosya] = satir.split('\t');
+    if (err || !dosya || !fs.existsSync(dosya)) {
+      i.durum = 'hata';
+      i.hata = err && err.code === 'ENOENT' ? 'yt-dlp kurulu değil (winget install yt-dlp.yt-dlp)'
+        : !err && !dosya ? 'indirilmedi (' + Math.round(ISTEK_EN_UZUN / 60) + ' dk\'dan uzun olabilir)'
+        : (hataYazi.split(/\r?\n/).filter(s => /error/i.test(s)).pop() || (err && err.message) || 'indirilemedi').slice(0, 160);
+    } else {
+      i.durum = 'hazir'; i.baslik = baslik || i.url;
+      i.yol = 'muzik/istek/' + encodeURIComponent(path.basename(dosya));
+    }
+    logYaz({ olay: 'istek', mesaj: (i.durum === 'hazir' ? 'İstek şarkı hazır: ' + i.baslik : 'İstek şarkı indirilemedi: ' + i.hata) });
+    istekYayinla();
+  });
+}
+function istekKaldir(no) {
+  const i = istekler.find(x => x.no === no); if (!i) return;
+  istekler = istekler.filter(x => x !== i);
+  if (i.yol) setTimeout(() => fs.unlink(path.join(ISTEK_KLASOR, decodeURIComponent(i.yol.split('/').pop())), () => {}), 5000);
+  istekYayinla();
+}
+
 // ---------- Panel komutları ----------
 function komut(m) {
   switch (m.tip) {
+    case 'istek': istekEkle(m.url); break;
+    case 'istekSil': istekKaldir(Number(m.no)); break;
     case 'arti': puanEkle(m.serit, Math.trunc(Number(m.miktar) || 1), 'panel', { id: 'panel', ad: 'Panel', foto: '' }); break;
     case 'sifirla': {
       const hedefler = m.serit ? durum.seritler.filter(s => s.id === m.serit) : durum.seritler;
@@ -310,11 +370,21 @@ wss.on('connection', (ws, req) => {
       else sonMuzikDurum = { ...m, zaman: Date.now(), oyunlar: [...oyunSayfalari.values()] };
       return yayinla(sonMuzikDurum, 'panel');
     }
+    if (ws.rol === 'oyun' && m.tip === 'istekBasladi') {   // yayındaki oyun istek şarkıyı çalmaya başladı
+      const i = istekler.find(x => x.no === Number(m.no));
+      if (i) { i.durum = 'caliyor'; i.calan = ws; istekYayinla(); }
+      return;
+    }
+    if (ws.rol === 'oyun' && m.tip === 'istekBitti') return istekKaldir(Number(m.no));   // bitti / lider değişti / çalınamadı
     if (ws.rol !== 'panel') return;
     try { komut(m); } catch (e) { console.error(e); }
   });
   if (ws.rol === 'panel' && sonMuzikDurum) ws.send(JSON.stringify(sonMuzikDurum));
-  ws.on('close', () => istemciler.delete(ws));
+  ws.send(JSON.stringify(istekOzet()));
+  ws.on('close', () => {
+    istemciler.delete(ws);
+    for (const i of istekler.filter(x => x.calan === ws)) istekKaldir(i.no);   // istek çalan oyun sayfası kapandı/yenilendi
+  });
 });
 // 0.0.0.0: aynı Wi-Fi'deki telefon/tablet de açabilsin
 sunucu.listen(PORT, '0.0.0.0', () => {

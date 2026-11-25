@@ -38,7 +38,7 @@ muzikListeYukle(); setInterval(muzikListeYukle, 30000);
 // panelden şarkı kaldırılınca hemen listeyi yenile; kaldırılan şarkı çalıyorsa sıradakine geç
 async function muzikHemenYenile() {
   await muzikListeYukle();
-  if (oynatici && !(muzikListe[oynatici.id] || []).some(x => x.yol === oynatici.yol)) { muzikTampon.delete(oynatici.yol); muzikCal(oynatici.id, SARKI_GECIS); }
+  if (oynatici && !oynatici.istek && !(muzikListe[oynatici.id] || []).some(x => x.yol === oynatici.yol)) { muzikTampon.delete(oynatici.yol); muzikCal(oynatici.id, SARKI_GECIS); }
 }
 
 // ayar.json'da bu şarkı için elle yazılmış bas/son var mı?
@@ -115,7 +115,11 @@ function muzikSondur(o, sure) {
   clearTimeout(o.zamanlayici);
   const t = ses.currentTime;
   o.g.gain.cancelScheduledValues(t); o.g.gain.setValueAtTime(o.g.gain.value, t); o.g.gain.linearRampToValueAtTime(0, t + sure);
-  try { o.kaynak.stop(t + sure + 0.02); } catch {}
+  if (o.audio) {   // istek şarkı: kısılınca durdur, sunucuya "bitti" de (sona geldi ya da lider değişti)
+    o.audio.onended = o.audio.ontimeupdate = null;
+    setTimeout(() => { try { o.audio.pause(); o.audio.removeAttribute('src'); o.audio.load(); } catch {} }, (sure + 0.05) * 1000);
+    istekGonder({ tip: 'istekBitti', no: o.istek });
+  } else { try { o.kaynak.stop(t + sure + 0.02); } catch {} }
 }
 // id ülkesinin sıradaki şarkısını çal. gecis: eski şarkı kaç saniyede kısılsın
 function muzikCal(id, gecis = MUZIK_GECIS) {
@@ -166,6 +170,7 @@ const asilPuan = s => (s.gercek ?? s.puan);
 function muzikKontrol() {
   if (MUZIK_SESSIZ) return;
   if (typeof seritler === 'undefined' || !seritler.length) return;
+  if (oynatici && oynatici.istek && !oynatici.id) return;   // kimse birinci değilken açılan istek şarkı sonuna kadar çalsın
   const sirali = [...seritler].sort((a, b) => asilPuan(b) - asilPuan(a)), lider = sirali[0];
   if (!lider || asilPuan(lider) <= 0) return;                                       // kimsenin puanı yok
   // berabere: çalan ülke de birincilerden biriyse o devam etsin. Değilse (ör. iki ülke birden öne geçti)
@@ -190,6 +195,53 @@ function muzikDurumGonder() {
   }
   const sirali = typeof seritler !== 'undefined' ? [...seritler].sort((a, b) => asilPuan(b) - asilPuan(a)) : [];
   const lider = sirali[0] && asilPuan(sirali[0]) > 0 ? sirali.filter(x => asilPuan(x) === asilPuan(sirali[0])).map(x => x.id) : [];
-  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 3, kimlik: OYUN_KIMLIK, sessiz: MUZIK_SESSIZ, obs: /OBS/i.test(navigator.userAgent) || !!window.obsstudio, lider, ulkeler, calan: oynatici ? { id: oynatici.id, ad: dosyaAdi(oynatici.yol) } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
+  ws.send(JSON.stringify({ tip: 'muzikDurum', surum: 4, kimlik: OYUN_KIMLIK, sessiz: MUZIK_SESSIZ, obs: /OBS/i.test(navigator.userAgent) || !!window.obsstudio, lider, ulkeler, calan: oynatici ? { id: oynatici.id, ad: oynatici.istek ? oynatici.ad : dosyaAdi(oynatici.yol), istek: !!oynatici.istek } : null, sesDurum: ses ? ses.state : 'yok', yer: typeof YER !== 'undefined' ? YER : null }));
 }
 setInterval(muzikDurumGonder, 3000);
+
+// ---------- İstek şarkı (panelden YouTube linki) ----------
+// Sunucu linkin sesini indirir; burada, o an birinci olan ülkenin müziğinin arasına girer ve TAMAMI çalar.
+// Bitince aynı ülkenin sıradaki şarkısıyla döngü kaldığı yerden devam eder.
+// İstek çalarken o ülke birincilikten düşerse istek kesilir, yeni birincinin sıradaki şarkısı başlar.
+// Uzun şarkı belleği şişirmesin diye çözülüp belleğe alınmaz, <audio> ile akarak çalar.
+let istekListe = [], istekHazirlaniyor = null;
+const istekCalinan = new Set();
+function istekGonder(m) { const ws = window.oyunSoket; if (ws && ws.readyState === 1) ws.send(JSON.stringify(m)); }
+function istekGuncelle(liste) {
+  istekListe = liste || [];
+  // panelden silindiyse kes, ülkenin döngüsüne dön
+  if (oynatici && oynatici.istek && !istekListe.some(x => x.no === oynatici.istek)) istekSonu(oynatici);
+  istekKontrol();
+}
+function istekSonu(o) {   // istek bitti/silindi: birincinin (yoksa çalan ülkenin) sıradaki şarkısı
+  if (oynatici !== o) return;
+  muzikSondur(o, SARKI_GECIS); oynatici = null;
+  const id = o.id || calanSerit;
+  if (id && muzikParcalar(id).length) muzikCal(id, SARKI_GECIS);   // sıradaki hazır değilse yüklenince kendisi başlar
+  setTimeout(istekKontrol, 300);
+}
+function istekKontrol() {
+  if (MUZIK_SESSIZ || istekHazirlaniyor || (oynatici && oynatici.istek)) return;
+  const s = istekListe.find(x => x.durum === 'hazir' && x.yol && !istekCalinan.has(x.no)); if (!s) return;
+  sesHazirla(); if (!ses) return;
+  istekCalinan.add(s.no); istekHazirlaniyor = s.no;
+  const audio = new Audio(); audio.preload = 'auto'; audio.src = s.yol;
+  const hata = () => { if (istekHazirlaniyor === s.no) istekHazirlaniyor = null; istekGonder({ tip: 'istekBitti', no: s.no }); };
+  audio.onerror = hata;
+  audio.oncanplay = () => {
+    audio.oncanplay = null;
+    if (istekHazirlaniyor !== s.no) return; istekHazirlaniyor = null;
+    if (!istekListe.some(x => x.no === s.no)) return;   // bu arada silindi
+    if (ses.state !== 'running') ses.resume();
+    const g = ses.createGain(); ses.createMediaElementSource(audio).connect(g); g.connect(ses.destination);
+    muzikSondur(oynatici, SARKI_GECIS);                   // çalan ülke şarkısı yumuşakça kısılır (sırası ilerlemez)
+    const t = ses.currentTime;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(MUZIK_SEVIYE, t + SARKI_GECIS);
+    const o = { audio, g, id: calanSerit, yol: s.yol, ad: s.baslik, istek: s.no, zamanlayici: null };
+    oynatici = o;
+    audio.play().then(() => istekGonder({ tip: 'istekBasladi', no: s.no })).catch(() => istekSonu(o));
+    let bitiyor = false;   // sona SARKI_GECIS kala ülkenin şarkısına yumuşak geçiş
+    audio.ontimeupdate = () => { if (!bitiyor && Number.isFinite(audio.duration) && audio.duration - audio.currentTime < SARKI_GECIS) { bitiyor = true; istekSonu(o); } };
+    audio.onended = () => istekSonu(o);
+  };
+}

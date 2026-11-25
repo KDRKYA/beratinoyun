@@ -9,3 +9,5 @@ __pycache__/
 public/video/*.mp4
 .claude/settings.local.json
 onizleme/ses/
+
+public/muzik/istek/
